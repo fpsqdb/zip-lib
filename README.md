@@ -16,6 +16,7 @@ npm install zip-archive
 * [Advanced usage](#advance-usage)
     - [Zip multiple files and folders](#zip-multiple-files-and-folders)
     - [Zip with metadata](#zip-with-metadata)
+    - [Unzip with entry callback](#unzip-with-entry-callback)
     - [Cancel zip](#cancel-zip)
     - [Cancel unzip](#cancel-unzip)  
 * [API](#api)
@@ -152,6 +153,26 @@ path/to/target.zip
     │   ├── file.ext
     ├── dir2
     └── file_in_root.ext
+```
+
+### Unzip with entry callback
+
+```js
+var za = require("zip-archive");
+
+var unzip = new za.Unzip({
+    // Called before an item is extracted.
+    // entryName: Entry name.
+    // entryCount: Total number of entries.
+    onEntry: function (entryName, entryCount) {
+        console.log(entryCount, entryName);
+    }
+})
+unzip.extract("path/to/target.zip", "path/to/target").then(function () {
+    console.log("done");
+}, function (err) {
+    console.log(err);
+});
 ```
 
 ### Cancel zip

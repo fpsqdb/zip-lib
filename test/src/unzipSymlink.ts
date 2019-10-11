@@ -1,4 +1,4 @@
-import * as za from "../../lib"
+import * as zl from "../../lib"
 import * as path from "path";
 import * as fs from "fs";
 import * as assert from "assert";
@@ -8,7 +8,7 @@ describe("unzip", () => {
     it("extract a zip file contains symlink", async () => {
         try {
             const des = path.join(__dirname, "../unzips/resources_with_symlink");
-            await za.extract(path.join(__dirname, "../unzipResources/resources_with_symlink.zip"), des, {
+            await zl.extract(path.join(__dirname, "../unzipResources/resources_with_symlink.zip"), des, {
                 overwrite: true,
                 symlinkAsFileOnWindows: false
             });
@@ -30,7 +30,7 @@ describe("unzip", () => {
     it("symlink to file on windows", async () => {
         try {
             const des = path.join(__dirname, "../unzips/resources_with_symlink");
-            await za.extract(path.join(__dirname, "../unzipResources/resources_with_symlink.zip"), des, {
+            await zl.extract(path.join(__dirname, "../unzipResources/resources_with_symlink.zip"), des, {
                 overwrite: true
             });
             const stat = await promisify(fs.lstat)(path.join(des, "symlink"));

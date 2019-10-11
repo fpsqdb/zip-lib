@@ -1,11 +1,11 @@
-import * as za from "../../lib"
+import * as zl from "../../lib"
 import * as path from "path";
 import * as assert from "assert";
 
 describe("unzip", () => {
     it("cancel extract zip file", async () => {
         try {
-            const unzip = new za.Unzip({
+            const unzip = new zl.Unzip({
                 overwrite: true
             });
             setTimeout(() => {

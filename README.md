@@ -1,4 +1,4 @@
-# zip-archive 
+# zip-lib 
 zip and unzip library for node. 
 
 **Requires Node.js >= 8.0**
@@ -6,7 +6,7 @@ zip and unzip library for node.
 ## Install
 
 ```
-npm install zip-archive
+npm install zip-lib
 ```
 
 ## Quick Start
@@ -31,14 +31,14 @@ npm install zip-archive
     - Options: [IExtractOptions](#iextractoptions)
 
 ## Zip
-You can use **zip-archive** to compress files or folders.
+You can use **zip-lib** to compress files or folders.
 
 ### Zip single file
 
 ```js
-var za = require("zip-archive");
+var zl = require("zip-lib");
 
-za.archiveFile("path/to/file.txt", "path/to/target.zip").then(function () {
+zl.archiveFile("path/to/file.txt", "path/to/target.zip").then(function () {
     console.log("done");
 }, function (err) {
     console.log(err);
@@ -48,9 +48,9 @@ za.archiveFile("path/to/file.txt", "path/to/target.zip").then(function () {
 ### Zip single folder
 
 ```js
-var za = require("zip-archive");
+var zl = require("zip-lib");
 
-za.archiveFolder("path/to/folder", "path/to/target.zip").then(function () {
+zl.archiveFolder("path/to/folder", "path/to/target.zip").then(function () {
     console.log("done");
 }, function (err) {
     console.log(err);
@@ -60,9 +60,9 @@ za.archiveFolder("path/to/folder", "path/to/target.zip").then(function () {
 ## Unzip
 
 ```js
-var za = require("zip-archive");
+var zl = require("zip-lib");
 
-za.extract("path/to/target.zip", "path/to/target").then(function () {
+zl.extract("path/to/target.zip", "path/to/target").then(function () {
     console.log("done");
 }, function (err) {
     console.log(err);
@@ -74,9 +74,9 @@ za.extract("path/to/target.zip", "path/to/target").then(function () {
 ### Zip multiple files and folders
 
 ```js
-var za = require("zip-archive");
+var zl = require("zip-lib");
 
-var zip = new za.Zip();
+var zip = new zl.Zip();
 // Adds a file from the file system
 zip.addFile("path/to/file.txt");
 // Adds a folder from the file system, putting its contents at the root of archive
@@ -115,9 +115,9 @@ path/to/target.zip
 ### Zip with metadata
 
 ```js
-var za = require("zip-archive");
+var zl = require("zip-lib");
 
-var zip = new za.Zip();
+var zip = new zl.Zip();
 // Adds a file from the file system
 zip.addFile("path/to/file.txt", "renamedFile.txt");
 zip.addFile("path/to/file2.txt", "folder/file.txt");
@@ -160,9 +160,9 @@ path/to/target.zip
 ### Unzip with entry callback
 
 ```js
-var za = require("zip-archive");
+var zl = require("zip-lib");
 
-var unzip = new za.Unzip({
+var unzip = new zl.Unzip({
     // Called before an item is extracted.
     // entryName: Entry name.
     // entryCount: Total number of entries.
@@ -181,9 +181,9 @@ unzip.extract("path/to/target.zip", "path/to/target").then(function () {
 Whether the archive operation is completed or not. Once the `cancel` method is called, the generated zip file will be deleted.
 
 ```js
-var za = require("zip-archive");
+var zl = require("zip-lib");
 
-var zip = new za.Zip();
+var zip = new zl.Zip();
 zip.addFile("path/to/file.txt");
 zip.archive("path/to/target.zip").then(function () {
     console.log("done");
@@ -203,9 +203,9 @@ zip.cancel();
 If the `cancel` method is called after the extract is complete, nothing will happen.
 
 ```js
-var za = require("zip-archive");
+var zl = require("zip-lib");
 
-var unzip = new za.Unzip();
+var unzip = new zl.Unzip();
 unzip.extract("path/to/target.zip", "path/to/target").then(function () {
     console.log("done");
 }, function (err) {
@@ -329,4 +329,4 @@ Arguments:
     - `entryCount`: Number - Total number of entries.
 
 # License
-[MIT](https://github.com/fpsqdb/zip-archive/blob/master/LICENSE)
+[MIT](https://github.com/fpsqdb/zip-lib/blob/master/LICENSE)

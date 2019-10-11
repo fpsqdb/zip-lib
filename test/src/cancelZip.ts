@@ -1,4 +1,4 @@
-import * as za from "../../lib"
+import * as zl from "../../lib"
 import * as path from "path";
 import * as fs from 'fs';
 import * as assert from "assert";
@@ -7,7 +7,7 @@ import { promisify } from "util";
 describe("zip", () => {
     it("cancel zip", async () => {
         try {
-            const zip = new za.Zip();
+            const zip = new zl.Zip();
             const target = path.join(__dirname, "../zips/node_modules.zip");
             zip.addFolder(path.join(__dirname, "../../node_modules"));
             setTimeout(() => {
@@ -25,7 +25,7 @@ describe("zip", () => {
     });
     it("cancel after zip completed", async () => {
         try {
-            const zip = new za.Zip();
+            const zip = new zl.Zip();
             const target = path.join(__dirname, "../zips/package_cancel.zip");
             zip.addFile(path.join(__dirname, "../../package.json"));
             setTimeout(async () => {

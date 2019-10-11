@@ -1,4 +1,4 @@
-import * as za from "../../lib"
+import * as zl from "../../lib"
 import * as path from "path";
 import * as assert from "assert";
 
@@ -7,7 +7,7 @@ describe("unzip", () => {
         try {
             let total: number = 9;
             let actual: number = 0;
-            await za.extract(path.join(__dirname, "../unzipResources/resources.zip"), path.join(__dirname, "../unzips/resources_sourcepath"), {
+            await zl.extract(path.join(__dirname, "../unzipResources/resources.zip"), path.join(__dirname, "../unzips/resources_sourcepath"), {
                 onEntry: (entryName: string, entryCount: number) => {
                     actual = entryCount;
                 }

@@ -12,6 +12,9 @@
     "type": "git",
     "url": "https://github.com/fpsqdb/zip-archive.git"
   },
+  "engines": {
+    "node": ">=8.0"
+  }
   "keywords": [
     "zip",
     "unzip",

@@ -1,6 +1,8 @@
 # zip-archive 
 zip and unzip library for node. 
 
+**Requires Node.js >= 8.0**
+
 ## Install
 
 ```

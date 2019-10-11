@@ -1,0 +1,6 @@
+node_modules
+src
+test
+.gitingore
+.npmignore
+.pakcage-lock.json

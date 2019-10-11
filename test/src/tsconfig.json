@@ -1,0 +1,21 @@
+{
+	"compilerOptions": {
+		"module": "commonjs",
+		"baseUrl": ".",
+        "moduleResolution": "node",
+        "target": "es5",
+		"outDir": "../out",
+        "sourceMap": false,
+		"experimentalDecorators": true,
+		"allowSyntheticDefaultImports": true,
+        "noImplicitAny": true,
+		"suppressImplicitAnyIndexErrors": true,
+        "skipLibCheck": true,
+        "noUnusedLocals": true,
+		"noImplicitThis": true,
+        "noImplicitReturns": true,
+        "alwaysStrict": true,
+        "strictBindCallApply": true,
+        "strictNullChecks": true
+	}
+}

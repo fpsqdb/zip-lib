@@ -1,0 +1,61 @@
+asdfasdf
+asdf
+asdf
+asd
+fa
+sdf
+as
+df
+asd
+fa
+sdf
+as
+df
+asd
+f
+asd
+fas
+df
+as
+df
+asdf
+a
+sdf
+    public async archive(zipFile: string): Promise<void> {
+        if (!zipFile) {
+            return Promise.reject(new Error("zipPath must not be empty"));
+        }
+        this.isCanceled = false;
+        this.isPipe = false;
+        this.targetZipFilePath = zipFile;
+        return new Promise<void>(async (c, e) => {
+            this.yazlErrorCallback = (err: any) => {
+                this.yazlErrorCallback = undefined;
+                e(err);
+            };
+            const zip = this.yazlFile;
+            try {
+                const files = this.zipFiles;
+                for (let fi = 0; fi < files.length; fi++) {
+                    const file = files[fi];
+                    await this.addFileOrSymlink(zip, file);
+                }
+                if (this.zipFolders.length > 0) {
+                    await this.walkDir(this.zipFolders);
+                }
+                await this.ensureZipPath(zipFile);
+            } catch (error) {
+                e(error);
+                return;
+            }
+            zip.end();
+            if (!this.isCanceled) {
+                this.zipStream = fs.createWriteStream(zipFile);
+                this.zipStream.once('error', e);
+                this.zipStream.once('close', () => c(void 0));
+                zip.outputStream.once('error', e);
+                zip.outputStream.pipe(this.zipStream);
+                this.isPipe = true;
+            }
+        });
+    }

@@ -4,3 +4,4 @@ test
 .gitingore
 .npmignore
 .pakcage-lock.json
+zip-archive-*.tgz

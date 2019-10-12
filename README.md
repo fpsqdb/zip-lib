@@ -291,7 +291,7 @@ Returns: `Promise<viod>`
 
 **Method: cancel()**
 
-Cancel compression. Whether the archive operation is completed or not. Once the `cancel` method is called, the generated zip file will be deleted.
+Cancel compression. If the `cancel` method is called after the archive is complete, nothing will happen.
 
 Returns: `void`
 
@@ -327,7 +327,7 @@ Object
 
 Object
 - `overwrite?`: String (optional) - If it is true, the target directory will be deleted before extract. The default value is `false`.
-- `symlinkAsFileOnWindows?`: Boolean (optional) - Extract symbolic links as files on windows. The default value is `true`. On windows, the default security policy allows only administrators to create symbolic links. <br>When `symlinkAsFileOnWindows` is set to `true`, the symlink in the zip archive will be extracted as a normal file on Windows. <br>When `symlinkAsFileOnWindows` is set to `false`, if the zip contains symlink, an `EPERM` error will be thrown under non-administrators.
+- `symlinkAsFileOnWindows?`: Boolean (optional) - Extract symbolic links as files on windows. The default value is `true`. On windows, the default security policy allows only administrators to create symbolic links. <br>When `symlinkAsFileOnWindows` is set to `true`, the symlink in the zip archive will be extracted as a normal file on Windows. When `symlinkAsFileOnWindows` is set to `false`, if the zip contains symlink, an `EPERM` error will be thrown under non-administrators.
 - `onEntry?`: Function (optional) - Called before an item is extracted.<br>Arguments:
     - `entryName`: String - Entry name.
     - `entryCount`: Number - Total number of entries.

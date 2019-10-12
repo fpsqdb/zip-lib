@@ -15,7 +15,8 @@
   "keywords": [
     "zip",
     "unzip",
-    "archive"
+    "archive",
+    "extract"
   ],
   "author": "fpsqdb",
   "license": "MIT",

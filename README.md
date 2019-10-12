@@ -176,7 +176,7 @@ unzip.extract("path/to/target.zip", "path/to/target").then(function () {
 ```
 
 ### Cancel zip
-Whether the archive operation is completed or not. If the `cancel` method is called after the archive is complete, nothing will happen.
+If the `cancel` method is called after the archive is complete, nothing will happen.
 
 ```js
 var zl = require("zip-lib");

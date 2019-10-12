@@ -21,4 +21,16 @@ describe("unzip", () => {
             }
         }
     });
+    it("cancel extract zip file after completed", async () => {
+        try {
+            const unzip = new zl.Unzip({
+                overwrite: true
+            });
+            await unzip.extract(path.join(__dirname, "../unzipResources/resources.zip"), path.join(__dirname, "../unzips/resources_cancel"));
+            unzip.cancel();
+            assert.ok(true, "cancel extract zip file after completed");
+        } catch (error) {
+            assert.fail(error);
+        }
+    });
 });

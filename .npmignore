@@ -3,5 +3,7 @@ src
 test
 .gitingore
 .npmignore
-.pakcage-lock.json
+package-lock.json
 zip-lib-*.tgz
+lib/fs.d.ts
+lib/util.d.ts

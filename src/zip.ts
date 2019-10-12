@@ -2,7 +2,7 @@ import * as yazl from "yazl";
 import * as fs from "fs";
 import * as exfs from "./fs";
 import * as path from "path";
-import { promisify } from 'util';
+import * as util from './util';
 
 interface ZipEntry {
     path: string;
@@ -40,7 +40,7 @@ export class Zip {
     private yazlFile: yazl.ZipFile;
     private isPipe: boolean = false;
     private isCanceled: boolean = false;
-    private targetZipFilePath: string;
+    // private targetZipFilePath: string;
     private zipStream: fs.WriteStream;
     private zipFiles: ZipEntry[];
     private zipFolders: ZipEntry[];
@@ -86,8 +86,8 @@ export class Zip {
         }
         this.isCanceled = false;
         this.isPipe = false;
-        this.targetZipFilePath = zipFile;
-        if(this.isOverwrite()){
+        // this.targetZipFilePath = zipFile;
+        if (this.isOverwrite()) {
             await this.removeFile(zipFile);
         }
         return new Promise<void>(async (c, e) => {
@@ -105,7 +105,7 @@ export class Zip {
                 if (this.zipFolders.length > 0) {
                     await this.walkDir(this.zipFolders);
                 }
-                await this.ensureZipPath(zipFile);
+                await exfs.ensureFolder(path.dirname(zipFile));
             } catch (error) {
                 e(error);
                 return;
@@ -114,7 +114,13 @@ export class Zip {
             if (!this.isCanceled) {
                 this.zipStream = fs.createWriteStream(zipFile);
                 this.zipStream.once('error', e);
-                this.zipStream.once('close', () => c(void 0));
+                this.zipStream.once('close', () => {
+                    if (this.isCanceled) {
+                        e(this.canceled())
+                    } else {
+                        c(void 0)
+                    }
+                });
                 zip.outputStream.once('error', e);
                 zip.outputStream.pipe(this.zipStream);
                 this.isPipe = true;
@@ -124,8 +130,7 @@ export class Zip {
 
     /**
      * Cancel compression.
-     * Whether the archive operation is completed or not. 
-     * Once the cancel method is called, the generated zip file will be deleted.
+     * If the cancel method is called after the archive is complete, nothing will happen.
      */
     public cancel(): void {
         this.stopPipe(this.canceled());
@@ -135,9 +140,9 @@ export class Zip {
         if (this.options && this.options.storeSymlinkAsFile) {
             zip.addFile(file, metadataPath);
         } else {
-            const stat = await promisify(fs.lstat)(file);
+            const stat = await util.lstat(file);
             if (stat.isSymbolicLink()) {
-                const linkTarget = await promisify(fs.readlink)(file);
+                const linkTarget = await util.readlink(file);
                 zip.addBuffer(Buffer.from(linkTarget), metadataPath, {
                     mtime: stat.mtime,
                     mode: stat.mode
@@ -174,26 +179,15 @@ export class Zip {
         }
     }
 
-    private async ensureZipPath(zipPath: string): Promise<void> {
-        const exist = await exfs.pathExists(zipPath);
-        if (exist) {
-            await promisify(fs.unlink)(zipPath);
-        } else {
-            await exfs.ensureFolder(path.dirname(zipPath));
-        }
-    }
-
     private stopPipe(err: Error): void {
         this.isCanceled = true;
+        if (this.yazlErrorCallback) {
+            this.yazlErrorCallback(err);
+        }
         if (this.isPipe) {
             this.yazlFile.outputStream.unpipe(this.zipStream);
             this.zipStream.destroy(err);
             this.isPipe = false;
-            this.removeFile(this.targetZipFilePath);
-        } else {
-            if (this.yazlErrorCallback) {
-                this.yazlErrorCallback(err);
-            }
         }
     }
 

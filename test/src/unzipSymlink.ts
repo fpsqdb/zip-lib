@@ -1,8 +1,7 @@
 import * as zl from "../../lib"
+import * as util from "../../lib/util"
 import * as path from "path";
-import * as fs from "fs";
 import * as assert from "assert";
-import { promisify } from "util";
 
 describe("unzip", () => {
     it("extract a zip file contains symlink", async () => {
@@ -12,7 +11,7 @@ describe("unzip", () => {
                 overwrite: true,
                 symlinkAsFileOnWindows: false
             });
-            const stat = await promisify(fs.lstat)(path.join(des, "symlink"));
+            const stat = await util.lstat(path.join(des, "symlink"));
             if (stat.isSymbolicLink()) {
                 assert.ok(true, "extract a zip file contains symlink");
             } else {
@@ -33,7 +32,7 @@ describe("unzip", () => {
             await zl.extract(path.join(__dirname, "../unzipResources/resources_with_symlink.zip"), des, {
                 overwrite: true
             });
-            const stat = await promisify(fs.lstat)(path.join(des, "symlink"));
+            const stat = await util.lstat(path.join(des, "symlink"));
             if (stat.isSymbolicLink()) {
                 assert.ok(true, "symlink to file on windows");
             } else {

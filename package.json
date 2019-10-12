@@ -6,14 +6,11 @@
   "scripts": {
     "compile": "rimraf ./lib && tsc -p ./src/tsconfig.json",
     "compile-test": "rimraf ./test/out && tsc -p ./test/src/tsconfig.json",
-    "test": "node ./test/src/before.js && mocha ./test/out"
+    "test": "node ./test/src/before.js && mocha ./test/out --timeout 5000"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/fpsqdb/zip-lib.git"
-  },
-  "engines": {
-    "node": ">=8.0"
   },
   "keywords": [
     "zip",

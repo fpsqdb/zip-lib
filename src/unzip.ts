@@ -3,7 +3,7 @@ import * as exfs from "./fs";
 import * as fs from "fs";
 import * as path from "path";
 import { Readable } from 'stream';
-import { promisify } from 'util';
+import * as util from './util';
 
 export interface IExtractOptions {
     /**
@@ -69,6 +69,12 @@ export class Unzip {
                     e(this.canceled());
                 }
             });
+            // Because openZip is an asynchronous method, openZip may not be completed when calling cancel, 
+            // so we need to check if it has been canceled after the openZip method returns.
+            if(this.isCanceled){
+                this.closeZip();
+                return;
+            }
             const total: number = zfile.entryCount;
             zfile.on("entry", async (entry: yauzl.Entry) => {
                 // use UTF-8 in all situations
@@ -101,6 +107,10 @@ export class Unzip {
         if (this.cancelCallback) {
             this.cancelCallback(this.canceled());
         }
+        this.closeZip();
+    }
+
+    private closeZip(): void {
         if (this.zipFile) {
             this.zipFile.close();
             this.zipFile = null;
@@ -161,6 +171,7 @@ export class Unzip {
     private async writeEntryToFile(readStream: Readable, entry: yauzl.Entry, filePath: string): Promise<void> {
         let fileStream: fs.WriteStream;
         this.cancelCallback = (err) => {
+            this.cancelCallback = undefined;
             if (fileStream) {
                 readStream.unpipe(fileStream);
                 fileStream.destroy(err);
@@ -205,7 +216,7 @@ export class Unzip {
     }
 
     private async createSymlink(linkContent: string, des: string): Promise<void> {
-        await promisify(fs.symlink)(linkContent, des);
+        await util.symlink(linkContent, des);
     }
 
 

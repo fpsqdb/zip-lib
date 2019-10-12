@@ -1,8 +1,6 @@
 # zip-lib 
 zip and unzip library for node. 
 
-**Requires Node.js >= 8.0**
-
 ## Install
 
 ```
@@ -178,7 +176,7 @@ unzip.extract("path/to/target.zip", "path/to/target").then(function () {
 ```
 
 ### Cancel zip
-Whether the archive operation is completed or not. Once the `cancel` method is called, the generated zip file will be deleted.
+Whether the archive operation is completed or not. If the `cancel` method is called after the archive is complete, nothing will happen.
 
 ```js
 var zl = require("zip-lib");
@@ -225,6 +223,7 @@ unzip.cancel();
 ### Method: archiveFile <a id="archivefile"></a>
 
 **archiveFile(file, zipFile, [options])**
+
 Compress a single file to zip.
 
 - `file`: String
@@ -236,6 +235,7 @@ Returns: `Promise<viod>`
 ### Method: archiveFolder <a id="archivefolder"></a>
 
 **archiveFolder(folder, zipFile, [options])**
+
 Compress all the contents of the specified folder to zip.
 
 - `folder`: String
@@ -247,6 +247,7 @@ Returns: `Promise<void>`
 ### Method: extract <a id="extract"></a>
 
 **extract(zipFile, targetFolder, [options])**
+
 Extract the zip file to the specified location.
 
 - `zipFile`: String
@@ -263,6 +264,7 @@ Compress files or folders to a zip file.
 - `options?`: [IZipOptions](#izipoptions) 
 
 **Method: addFile(file, [metadataPath])**
+
 Adds a file from the file system at realPath into the zipfile as metadataPath.
 
 - `file`: String
@@ -271,6 +273,7 @@ Adds a file from the file system at realPath into the zipfile as metadataPath.
 Returns: `void`
 
 **Method: addFolder(folder, [metadataPath])**
+
 Adds a folder from the file system at realPath into the zipfile as metadataPath.
 
 - `folder`: String
@@ -279,6 +282,7 @@ Adds a folder from the file system at realPath into the zipfile as metadataPath.
 Returns: `void`
 
 **Method: archive(zipFile)**
+
 Generate zip file.
 
 - `zipFile`: String
@@ -286,6 +290,7 @@ Generate zip file.
 Returns: `Promise<viod>`
 
 **Method: cancel()**
+
 Cancel compression. Whether the archive operation is completed or not. Once the `cancel` method is called, the generated zip file will be deleted.
 
 Returns: `void`
@@ -298,6 +303,7 @@ Extract the zip file.
 - `options?`: [IZipOptions](#izipoptions) (optional)
 
 **Method: extract(zipFile, targetFolder)**
+
 Extract the zip file to the specified location.
 
 - `zipFile`: String
@@ -306,6 +312,7 @@ Extract the zip file to the specified location.
 Returns: `Promise<void>`
 
 **Method: cancel()**
+
 If the `cancel` method is called after the extract is complete, nothing will happen.
 
 Returns: `void`

@@ -1,8 +1,7 @@
 import * as zl from "../../lib"
+import * as util from "../../lib/util"
 import * as path from "path";
-import * as fs from 'fs';
 import * as assert from "assert";
-import { promisify } from "util";
 
 describe("zip", () => {
     it("cancel zip", async () => {
@@ -12,7 +11,7 @@ describe("zip", () => {
             zip.addFolder(path.join(__dirname, "../../node_modules"));
             setTimeout(() => {
                 zip.cancel();
-            }, 1000);
+            }, 500);
             await zip.archive(target);
             assert.fail("cancel zip");
         } catch (error) {
@@ -31,7 +30,7 @@ describe("zip", () => {
             setTimeout(async () => {
                 zip.cancel();
                 try {
-                    await promisify(fs.access)(target);
+                    await util.access(target);
                     assert.fail("cancel failed");
                 } catch (error) {
                     assert.ok(true);

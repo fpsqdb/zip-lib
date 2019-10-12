@@ -1,8 +1,7 @@
 import * as zl from "../../lib"
+import * as util from "../../lib/util"
 import * as path from "path";
-import * as fs from "fs";
 import * as assert from "assert";
-import { promisify } from "util";
 
 describe("unzip", () => {
     it("extract a zip file that does not exist", async () => {
@@ -29,7 +28,7 @@ describe("unzip", () => {
         try {
             let expectedFileName = "¹ º » ¼ ½ ¾.txt";
             await zl.extract(path.join(__dirname, "../unzipResources/resources_macos.zip"), path.join(__dirname, "../unzips/resources_macos"));
-            await promisify(fs.access)(path.join(__dirname, "../unzips/resources_macos/", expectedFileName));
+            await util.access(path.join(__dirname, "../unzips/resources_macos/", expectedFileName));
             assert.ok(true, "file name encoding");
         } catch (error) {
             assert.fail(error);

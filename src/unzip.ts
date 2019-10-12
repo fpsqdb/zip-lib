@@ -180,6 +180,7 @@ export class Unzip {
         return new Promise<void>(async (c, e) => {
             try {
                 const mode = this.modeFromEntry(entry);
+                // see https://unix.stackexchange.com/questions/193465/what-file-mode-is-a-symlink
                 const isSymlink = ((mode & 0o170000) === 0o120000);
                 readStream.once('error', e);
 

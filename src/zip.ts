@@ -143,7 +143,7 @@ export class Zip {
             const stat = await util.lstat(file);
             if (stat.isSymbolicLink()) {
                 const linkTarget = await util.readlink(file);
-                zip.addBuffer(Buffer.from(linkTarget), metadataPath, {
+                zip.addBuffer(this.stringToBuffer(linkTarget), metadataPath, {
                     mtime: stat.mtime,
                     mode: stat.mode
                 })
@@ -213,6 +213,15 @@ export class Zip {
             await exfs.rimraf(file);
         } catch (error) {
             // ignore error
+        }
+    }
+
+    // Buffer api adds support for node.js < v5.10.0
+    private stringToBuffer(str: string): Buffer {
+        try {
+            return Buffer.from(str);
+        } catch (error) {
+            return new Buffer(str);
         }
     }
 }

@@ -336,4 +336,4 @@ Arguments:
     - `entryCount`: Number - Total number of entries.
 
 # License
-[MIT](https://github.com/fpsqdb/zip-lib/blob/master/LICENSE)
+Licensed under the [MIT](https://github.com/fpsqdb/zip-lib/blob/master/LICENSE) license.

@@ -354,7 +354,7 @@ Object
     - `event`: Object - Represents an event that an entry is about to be extracted.
         - `entryName`: String (readonly) - Entry name.
         - `entryCount`: Number (readonly) - Total number of entries.
-        - `preventDefault()`: Function - Prevent extracting current entry. This method that can be used to prevent extraction of the current item. By calling this method we can control which items can be extracted.
+        - `preventDefault()`: Function - Prevent extracting current entry. This method can be used to prevent extraction of the current item. By calling this method we can control which items can be extracted.
 
 # License
 Licensed under the [MIT](https://github.com/fpsqdb/zip-lib/blob/master/LICENSE) license.

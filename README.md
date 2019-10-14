@@ -17,6 +17,7 @@ npm install zip-lib
     - [Zip multiple files and folders](#zip-multiple-files-and-folders)
     - [Zip with metadata](#zip-with-metadata)
     - [Unzip with entry callback](#unzip-with-entry-callback)
+    - [Unzip and exclude specified entries](#unzip-and-exclude-specified-entries)
     - [Cancel zip](#cancel-zip)
     - [Cancel unzip](#cancel-unzip)  
 * [API](#api)
@@ -156,16 +157,37 @@ path/to/target.zip
 ```
 
 ### Unzip with entry callback
+Using `onEntry` callback we can know the current progress of extracting and control the extraction operation. see [IExtractOptions](#iextractoptions).
 
 ```js
 var zl = require("zip-lib");
 
 var unzip = new zl.Unzip({
     // Called before an item is extracted.
-    // entryName: Entry name.
-    // entryCount: Total number of entries.
-    onEntry: function (entryName, entryCount) {
-        console.log(entryCount, entryName);
+    onEntry: function (event) {
+        console.log(event.entryCount, event.entryName);
+    }
+})
+unzip.extract("path/to/target.zip", "path/to/target").then(function () {
+    console.log("done");
+}, function (err) {
+    console.log(err);
+});
+```
+
+### Unzip and exclude specified entries
+The following code shows how to exclude the `__MACOSX` folder in the zip file when extracting. see [IExtractOptions](#iextractoptions).
+
+```js
+var zl = require("zip-lib");
+
+var unzip = new zl.Unzip({
+    // Called before an item is extracted.
+    onEntry: function (event) {
+        if (/^__MACOSX\//.test(event.entryName)) {
+            // entry name starts with __MACOSX/
+            event.preventDefault();
+        }
     }
 })
 unzip.extract("path/to/target.zip", "path/to/target").then(function () {
@@ -329,8 +351,10 @@ Object
 - `overwrite?`: String (optional) - If it is true, the target directory will be deleted before extract. The default value is `false`.
 - `symlinkAsFileOnWindows?`: Boolean (optional) - Extract symbolic links as files on windows. The default value is `true`. On windows, the default security policy allows only administrators to create symbolic links. <br>When `symlinkAsFileOnWindows` is set to `true`, the symlink in the zip archive will be extracted as a normal file on Windows. When `symlinkAsFileOnWindows` is set to `false`, if the zip contains symlink, an `EPERM` error will be thrown under non-administrators.
 - `onEntry?`: Function (optional) - Called before an item is extracted.<br>Arguments:
-    - `entryName`: String - Entry name.
-    - `entryCount`: Number - Total number of entries.
+    - `event`: Object - Represents an event that an entry is about to be extracted.
+        - `entryName`: String (readonly) - Entry name.
+        - `entryCount`: Number (readonly) - Total number of entries.
+        - `preventDefault()`: Function - Prevent extracting current entry. This method that can be used to prevent extraction of the current item. By calling this method we can control which items can be extracted.
 
 # License
 Licensed under the [MIT](https://github.com/fpsqdb/zip-lib/blob/master/LICENSE) license.

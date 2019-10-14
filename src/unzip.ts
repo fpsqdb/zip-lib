@@ -276,7 +276,6 @@ export class Unzip {
         await util.symlink(linkContent, des);
     }
 
-
     /**
      * Returns an error that signals cancellation.
      */

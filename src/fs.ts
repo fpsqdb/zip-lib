@@ -69,36 +69,35 @@ export async function pathExists(path: string): Promise<boolean> {
 }
 
 export async function rimraf(target: string): Promise<void> {
-	try {
-		const stat = await util.lstat(target);
+    try {
+        const stat = await util.lstat(target);
 
-		// Folder delete (recursive) - NOT for symbolic links though!
-		if (stat.isDirectory() && !stat.isSymbolicLink()) {
+        // Folder delete (recursive) - NOT for symbolic links though!
+        if (stat.isDirectory() && !stat.isSymbolicLink()) {
 
-			// Children
-			const children = await util.readdir(target);
-			await Promise.all(children.map(child => rimraf(path.join(target, child))));
+            // Children
+            const children = await util.readdir(target);
+            await Promise.all(children.map(child => rimraf(path.join(target, child))));
 
-			// Folder
-			await util.rmdir(target);
-		}
+            // Folder
+            await util.rmdir(target);
+        }
+        // Single file delete
+        else {
 
-		// Single file delete
-		else {
+            // chmod as needed to allow for unlink
+            const mode = stat.mode;
+            if (!(mode & 128)) { // 128 === 0200
+                await util.chmod(target, mode | 128);
+            }
 
-			// chmod as needed to allow for unlink
-			const mode = stat.mode;
-			if (!(mode & 128)) { // 128 === 0200
-				await util.chmod(target, mode | 128);
-			}
-
-			return util.unlink(target);
-		}
-	} catch (error) {
-		if (error.code !== 'ENOENT') {
-			throw error;
-		}
-	}
+            return util.unlink(target);
+        }
+    } catch (error) {
+        if (error.code !== 'ENOENT') {
+            throw error;
+        }
+    }
 }
 
 async function mkdir(folder: string): Promise<void> {

@@ -23,10 +23,58 @@ export interface IExtractOptions {
     symlinkAsFileOnWindows?: boolean
     /**
      * Called before an item is extracted.
-     * @param entryName Entry name.
-     * @param entryCount Total number of entries.
+     * @param event 
      */
-    onEntry?: (entryName: string, entryCount: number) => void;
+    onEntry?: (event: IEntryEvent) => void;
+}
+
+/**
+ * The IEntryEvent interface represents an event that an entry is about to be extracted.
+ */
+export interface IEntryEvent {
+    /**
+     * Entry name.
+     */
+    readonly entryName: string;
+    /**
+     * Total number of entries.
+     */
+    readonly entryCount: number;
+    /**
+     * Prevent extracting current entry.
+     */
+    preventDefault(): void;
+}
+
+class EntryEvent implements IEntryEvent {
+    private _entryName: string;
+    get entryName(): string {
+        return this._entryName;
+    }
+    set entryName(name: string) {
+        this._entryName = name;
+    }
+
+    private _entryCount: number;
+    get entryCount(): number {
+        return this._entryCount;
+    }
+    set entryCount(count: number) {
+        this._entryCount = count;
+    }
+
+    private _isPrevented: boolean = false;
+    get isPrevented(): boolean {
+        return this._isPrevented;
+    }
+
+    public preventDefault(): void {
+        this._isPrevented = true;
+    }
+
+    public reset(): void {
+        this._isPrevented = false;
+    }
 }
 
 /**
@@ -71,18 +119,26 @@ export class Unzip {
             });
             // Because openZip is an asynchronous method, openZip may not be completed when calling cancel, 
             // so we need to check if it has been canceled after the openZip method returns.
-            if(this.isCanceled){
+            if (this.isCanceled) {
                 this.closeZip();
                 return;
             }
             const total: number = zfile.entryCount;
+            const entryEvent: EntryEvent = new EntryEvent();
             zfile.on("entry", async (entry: yauzl.Entry) => {
                 // use UTF-8 in all situations
                 // see https://github.com/thejoshwolfe/yauzl/issues/84
                 const fileName = (entry.fileName as any as Buffer).toString("utf8")
-                this.onEntryCallback(fileName, total);
+                entryEvent.entryName = fileName;
+                entryEvent.entryCount = total;
+                this.onEntryCallback(entryEvent);
                 try {
-                    await this.handleEntry(zfile, entry, fileName, targetFolder);
+                    if (entryEvent.isPrevented) {
+                        entryEvent.reset();
+                        zfile.readEntry();
+                    } else {
+                        await this.handleEntry(zfile, entry, fileName, targetFolder);
+                    }
                     extractedEntriesCount++;
                     if (extractedEntriesCount === total) {
                         c();
@@ -238,13 +294,13 @@ export class Unzip {
         return false;
     }
 
-    private onEntryCallback(entryName: string, entryCount: number): void { 
+    private onEntryCallback(event: IEntryEvent): void {
         if (this.options && this.options.onEntry) {
-            this.options.onEntry(entryName, entryCount);
+            this.options.onEntry(event);
         }
     }
 
-    private symlinkToFile(): boolean {  
+    private symlinkToFile(): boolean {
         let symlinkToFile: boolean = false;
         if (process.platform === "win32") {
             if (this.options &&

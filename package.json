@@ -1,37 +1,40 @@
 {
-  "name": "zip-lib",
-  "version": "0.3.0",
-  "description": "zip and unzip library for node",
-  "main": "lib/index.js",
-  "scripts": {
-    "compile": "rimraf ./lib && tsc -p ./src/tsconfig.json",
-    "compile-test": "rimraf ./test/out && tsc -p ./test/src/tsconfig.json",
-    "test": "node ./test/src/before.js && mocha ./test/out --timeout 5000"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/fpsqdb/zip-lib.git"
-  },
-  "keywords": [
-    "zip",
-    "unzip",
-    "archive",
-    "extract"
-  ],
-  "author": "fpsqdb",
-  "license": "MIT",
-  "dependencies": {
-    "tslib": "^1.10.0",
-    "yauzl": "^2.10.0",
-    "yazl": "^2.5.1"
-  },
-  "devDependencies": {
-    "@types/mocha": "^5.2.7",
-    "@types/node": "^8.10.54",
-    "@types/yauzl": "^2.9.1",
-    "@types/yazl": "^2.4.2",
-    "mocha": "^6.2.1",
-    "rimraf": "^3.0.0",
-    "typescript": "^3.6.4"
-  }
+    "name": "zip-lib",
+    "version": "0.3.0",
+    "description": "zip and unzip library for node",
+    "main": "lib/index.js",
+    "scripts": {
+        "compile": "rimraf ./lib && tsc -p ./src/tsconfig.json",
+        "compile-test": "rimraf ./test/out && tsc -p ./test/src/tsconfig.json",
+        "test": "node ./test/src/before.js && mocha ./test/out --timeout 5000"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/fpsqdb/zip-lib.git"
+    },
+    "engines": {
+        "node": ">=4.0.0"
+    },
+    "keywords": [
+        "zip",
+        "unzip",
+        "archive",
+        "extract"
+    ],
+    "author": "fpsqdb",
+    "license": "MIT",
+    "dependencies": {
+        "tslib": "^1.10.0",
+        "yauzl": "^2.10.0",
+        "yazl": "^2.5.1"
+    },
+    "devDependencies": {
+        "@types/mocha": "^5.2.7",
+        "@types/node": "^8.10.54",
+        "@types/yauzl": "^2.9.1",
+        "@types/yazl": "^2.4.2",
+        "mocha": "^6.2.1",
+        "rimraf": "^3.0.0",
+        "typescript": "^3.6.4"
+    }
 }

@@ -342,7 +342,6 @@ Returns: `void`
 ### Options: IZipOptions <a id="izipoptions"></a>
 
 Object
-- `overwrite?`: String (optional) - If it is true, the target file will be deleted before archive. The default value is `false`.
 - `storeSymlinkAsFile?`: Boolean (optional) - Store symbolic links as files. The default value is `false`.
 
 ### Options: IExtractOptions <a id="iextractoptions"></a>

@@ -11,14 +11,6 @@ describe("zip", () => {
             assert.fail(error);
         }
     });
-    it("zip a single empty folder", async () => {
-        try {
-            await zl.archiveFolder(path.join(__dirname, "../resources/name with space"), path.join(__dirname, "../zips/name with space.zip"));
-            assert.ok(true, "zip a single empty folder");
-        } catch (error) {     
-            assert.fail(error);
-        }
-    });
     it("zip a folder that does not exist", async () => {
         try {
             await zl.archiveFolder(path.join(__dirname, "asdfasdfasdf"), path.join(__dirname, "../zips/dddafsdasdf.zip"));

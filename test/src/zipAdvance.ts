@@ -21,8 +21,12 @@ describe("zip", () => {
             fs.accessSync(path.join(unzipTarget, "ddddd.txt"));
             fs.accessSync(path.join(unzipTarget, "new subfolder/test text.txt"));
             fs.accessSync(path.join(unzipTarget, "new subfolder/test.txt"));
-            fs.existsSync(path.join(unzipTarget, "new subfolder/test.txt - shortcut"));
-            assert.ok("advance zip");
+            const exist = fs.existsSync(path.join(unzipTarget, "new subfolder/test.txt - shortcut.lnk"));
+            if (!exist) {
+                assert.fail(`${path.join(unzipTarget, "new subfolder/test.txt - shortcut.lnk")} does not exist.`);
+            } else {
+                assert.ok("advance zip");
+            }
         } catch (error) {
             assert.fail(error);
         }

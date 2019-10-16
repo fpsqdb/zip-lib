@@ -11,11 +11,6 @@ interface ZipEntry {
 
 export interface IZipOptions {
     /**
-     * If it is true, the target file will be deleted before archive. 
-     * The default value is false.
-     */
-    overwrite?: boolean;
-    /**
      * Store symbolic links as files.
      * The default value is false.
      */
@@ -40,7 +35,6 @@ export class Zip {
     private yazlFile: yazl.ZipFile;
     private isPipe: boolean = false;
     private isCanceled: boolean = false;
-    // private targetZipFilePath: string;
     private zipStream: fs.WriteStream;
     private zipFiles: ZipEntry[];
     private zipFolders: ZipEntry[];
@@ -86,10 +80,6 @@ export class Zip {
         }
         this.isCanceled = false;
         this.isPipe = false;
-        // this.targetZipFilePath = zipFile;
-        if (this.isOverwrite()) {
-            await this.removeFile(zipFile);
-        }
         return new Promise<void>(async (c, e) => {
             this.yazlErrorCallback = (err: any) => {
                 this.yazlErrorCallback = undefined;
@@ -160,20 +150,28 @@ export class Zip {
             }
             const folder = folders[fi];
             const entries = await exfs.readdirp(folder.path);
-            for (let ei = 0; ei < entries.length; ei++) {
-                const entry = entries[ei];
-                if (this.isCanceled) {
-                    return;
+            if (entries.length > 0) {
+                for (let ei = 0; ei < entries.length; ei++) {
+                    const entry = entries[ei];
+                    if (this.isCanceled) {
+                        return;
+                    }
+                    const relativePath = path.relative(folder.path, entry.path);
+                    const metadataPath = folder.metadataPath ? path.join(folder.metadataPath, relativePath) : relativePath;
+                    if (entry.isDirectory) {
+                        this.yazlFile.addEmptyDirectory(metadataPath, {
+                            mtime: entry.mtime,
+                            mode: entry.mode
+                        });
+                    } else {
+                        this.addFileOrSymlink(this.yazlFile, entry.path, metadataPath);
+                    }
                 }
-                const relativePath = path.relative(folder.path, entry.path);
-                const metadataPath = folder.metadataPath ? path.join(folder.metadataPath, relativePath) : relativePath;
-                if (entry.isDirectory) {
-                    this.yazlFile.addEmptyDirectory(metadataPath, {
-                        mtime: entry.mtime,
-                        mode: entry.mode
-                    });
-                } else {
-                    this.addFileOrSymlink(this.yazlFile, entry.path, metadataPath);
+            } else {
+                // If the folder is empty and the metadataPath has a value, 
+                // an empty folder should be created based on the metadataPath
+                if(folder.metadataPath){
+                    this.yazlFile.addEmptyDirectory(folder.metadataPath);
                 }
             }
         }
@@ -198,22 +196,6 @@ export class Zip {
         let error = new Error("Canceled");
         error.name = error.message;
         return error;
-    }
-
-    private isOverwrite(): boolean {
-        if (this.options &&
-            this.options.overwrite) {
-            return true;
-        }
-        return false;
-    }
-
-    private async removeFile(file: string): Promise<void> {
-        try {
-            await exfs.rimraf(file);
-        } catch (error) {
-            // ignore error
-        }
     }
 
     // Buffer api adds support for node.js < v5.10.0

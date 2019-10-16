@@ -107,14 +107,20 @@ export class Unzip {
         if (this.isCanceled) {
             return Promise.reject(this.canceled());
         }
+        await exfs.ensureFolder(targetFolder);
         const zfile = await this.openZip(zipFile);
         this.zipFile = zfile;
         zfile.readEntry();
         return new Promise<void>((c, e) => {
+            const total: number = zfile.entryCount;
             zfile.once('error', e);
             zfile.once('close', () => {
                 if (this.isCanceled) {
                     e(this.canceled());
+                } 
+                // If the zip content is empty, it will not receive the `zfile.on("entry")` event.
+                else if(total === 0) {
+                    c(void 0);
                 }
             });
             // Because openZip is an asynchronous method, openZip may not be completed when calling cancel, 
@@ -123,7 +129,6 @@ export class Unzip {
                 this.closeZip();
                 return;
             }
-            const total: number = zfile.entryCount;
             const entryEvent: EntryEvent = new EntryEvent();
             zfile.on("entry", async (entry: yauzl.Entry) => {
                 // use UTF-8 in all situations

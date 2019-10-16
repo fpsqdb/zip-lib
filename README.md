@@ -157,7 +157,7 @@ path/to/target.zip
 ```
 
 ### Unzip with entry callback
-Using `onEntry` callback we can know the current progress of extracting and control the extraction operation. see [IExtractOptions](#iextractoptions).
+Using `onEntry` callback we can know the current progress of extracting and control the extraction operation. See [IExtractOptions](#iextractoptions).
 
 ```js
 var zl = require("zip-lib");
@@ -176,7 +176,7 @@ unzip.extract("path/to/target.zip", "path/to/target").then(function () {
 ```
 
 ### Unzip and exclude specified entries
-The following code shows how to exclude the `__MACOSX` folder in the zip file when extracting. see [IExtractOptions](#iextractoptions).
+The following code shows how to exclude the `__MACOSX` folder in the zip file when extracting. See [IExtractOptions](#iextractoptions).
 
 ```js
 var zl = require("zip-lib");

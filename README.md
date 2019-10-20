@@ -1,6 +1,8 @@
 # zip-lib 
 zip and unzip library for node. 
 
+[![npm Package](https://img.shields.io/npm/v/zip-lib.svg)](https://www.npmjs.org/package/zip-lib) [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fpsqdb/zip-lib/blob/master/LICENSE) [![Build Status](https://travis-ci.org/fpsqdb/zip-lib.svg?branch=master)](https://travis-ci.org/fpsqdb/zip-lib)
+
 ## Install
 
 ```

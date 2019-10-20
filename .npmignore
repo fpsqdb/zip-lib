@@ -3,6 +3,7 @@ src
 test
 .gitingore
 .npmignore
+.travis.yml
 package-lock.json
 zip-lib-*.tgz
 lib/fs.d.ts

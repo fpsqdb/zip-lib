@@ -2,6 +2,7 @@ node_modules
 src
 test
 .gitingore
+.github
 .npmignore
 .travis.yml
 package-lock.json

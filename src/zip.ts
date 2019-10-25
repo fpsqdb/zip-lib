@@ -132,15 +132,24 @@ export class Zip {
         } else {
             const stat = await util.lstat(file);
             if (stat.isSymbolicLink()) {
-                const linkTarget = await util.readlink(file);
-                zip.addBuffer(this.stringToBuffer(linkTarget), metadataPath, {
+                await this.addSymlink(zip, {
+                    path: file,
+                    type: "file",
                     mtime: stat.mtime,
                     mode: stat.mode
-                })
+                }, metadataPath)
             } else {
                 zip.addFile(file, metadataPath);
             }
         }
+    }
+
+    private async addSymlink(zip: yazl.ZipFile, file: exfs.FileEntry, metadataPath: string): Promise<void> {
+        const linkTarget = await util.readlink(file.path);
+        zip.addBuffer(this.stringToBuffer(linkTarget), metadataPath, {
+            mtime: file.mtime,
+            mode: file.mode
+        })
     }
 
     private async walkDir(folders: ZipEntry[]): Promise<void> {
@@ -158,19 +167,21 @@ export class Zip {
                     }
                     const relativePath = path.relative(folder.path, entry.path);
                     const metadataPath = folder.metadataPath ? path.join(folder.metadataPath, relativePath) : relativePath;
-                    if (entry.isDirectory) {
+                    if (entry.type === "dir") {
                         this.yazlFile.addEmptyDirectory(metadataPath, {
                             mtime: entry.mtime,
                             mode: entry.mode
                         });
+                    } else if(entry.type === "symlink") {
+                        await this.addSymlink(this.yazlFile, entry, metadataPath);
                     } else {
-                        this.addFileOrSymlink(this.yazlFile, entry.path, metadataPath);
+                        this.yazlFile.addFile(entry.path, metadataPath);
                     }
                 }
             } else {
                 // If the folder is empty and the metadataPath has a value, 
                 // an empty folder should be created based on the metadataPath
-                if(folder.metadataPath){
+                if (folder.metadataPath) {
                     this.yazlFile.addEmptyDirectory(folder.metadataPath);
                 }
             }

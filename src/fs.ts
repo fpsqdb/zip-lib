@@ -1,12 +1,13 @@
 import * as path from "path";
 import * as util from "./util";
 
-interface FileEntry {
+export interface FileEntry {
     path: string;
-    isDirectory: boolean;
-    mtime?: Date;
-    mode?: number;
+    type: FileType;
+    mtime: Date;
+    mode: number;
 }
+export type FileType = "symlink" | "file" | "dir";
 
 export async function readdirp(folder: string): Promise<FileEntry[]> {
     let result: FileEntry[] = [];
@@ -14,24 +15,27 @@ export async function readdirp(folder: string): Promise<FileEntry[]> {
     for (let i = 0; i < files.length; i++) {
         const file = path.join(folder, files[i]);
         const stat = await util.lstat(file);
+        let fileType: FileType = "file";
         if (stat.isDirectory()) {
+            fileType = "dir";
             const subFiles = await readdirp(file);
             if (subFiles.length > 0) {
                 result.push(...subFiles);
-            } else {
-                result.push({
-                    path: file,
-                    isDirectory: true,
-                    mtime: stat.mtime,
-                    mode: stat.mode
-                });
+                // If the folder is not empty, don't need to add the folder itself.
+                // continue and skip the code below
+                continue;
             }
         } else {
-            result.push({
-                path: file,
-                isDirectory: false
-            });
+            if (stat.isSymbolicLink()) {
+                fileType = "symlink";
+            }
         }
+        result.push({
+            path: file,
+            type: fileType,
+            mtime: stat.mtime,
+            mode: stat.mode
+        });
     }
     return result;
 }

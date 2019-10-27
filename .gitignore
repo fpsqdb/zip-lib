@@ -4,3 +4,4 @@
 /test/zips
 /test/unzips
 /zip-lib-*.tgz
+/test/resources/symlink

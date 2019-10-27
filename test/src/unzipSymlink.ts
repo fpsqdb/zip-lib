@@ -20,6 +20,7 @@ describe("unzip", () => {
         } catch (error) {
             if (process.platform === "win32" &&
                 error.code === "EPERM") {
+                console.warn("Please run this test with administator.");
                 assert.ok(true, "Please run this test with administator.");
             } else {
                 assert.fail(error);
@@ -28,7 +29,7 @@ describe("unzip", () => {
     });
     it("symlink to file on windows", async () => {
         try {
-            const des = path.join(__dirname, "../unzips/resources_with_symlink");
+            const des = path.join(__dirname, "../unzips/resources_with_symlinkAsFile");
             await zl.extract(path.join(__dirname, "../unzipResources/resources_with_symlink.zip"), des, {
                 overwrite: true
             });

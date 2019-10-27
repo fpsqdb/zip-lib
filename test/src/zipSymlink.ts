@@ -46,8 +46,7 @@ describe("zip", () => {
         try {
             const des = path.join(__dirname, "../unzips/symlink_asfile");
             await zl.extract(zipFile, des, {
-                overwrite: true,
-                symlinkAsFileOnWindows: false,
+                overwrite: true
             });
             const stat = await util.lstat(path.join(des, "symlink"));
             if (stat.isSymbolicLink()) {

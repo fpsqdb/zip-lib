@@ -146,7 +146,7 @@ export class Zip {
 
     private async addSymlink(zip: yazl.ZipFile, file: exfs.FileEntry, metadataPath: string): Promise<void> {
         const linkTarget = await util.readlink(file.path);
-        zip.addBuffer(this.stringToBuffer(linkTarget), metadataPath, {
+        zip.addBuffer(Buffer.from(linkTarget), metadataPath, {
             mtime: file.mtime,
             mode: file.mode
         })
@@ -207,15 +207,6 @@ export class Zip {
         let error = new Error("Canceled");
         error.name = error.message;
         return error;
-    }
-
-    // Buffer api adds support for node.js < v5.10.0
-    private stringToBuffer(str: string): Buffer {
-        try {
-            return Buffer.from(str);
-        } catch (error) {
-            return new Buffer(str);
-        }
     }
 
     private storeSymlinkAsFile(): boolean {

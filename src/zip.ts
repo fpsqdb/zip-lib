@@ -127,7 +127,7 @@ export class Zip {
     }
 
     private async addFileOrSymlink(zip: yazl.ZipFile, file: string, metadataPath: string): Promise<void> {
-        if (this.options && this.options.storeSymlinkAsFile) {
+        if (this.storeSymlinkAsFile()) {
             zip.addFile(file, metadataPath);
         } else {
             const stat = await util.lstat(file);
@@ -172,7 +172,7 @@ export class Zip {
                             mtime: entry.mtime,
                             mode: entry.mode
                         });
-                    } else if(entry.type === "symlink") {
+                    } else if (entry.type === "symlink" && !this.storeSymlinkAsFile()) {
                         await this.addSymlink(this.yazlFile, entry, metadataPath);
                     } else {
                         this.yazlFile.addFile(entry.path, metadataPath);
@@ -216,5 +216,14 @@ export class Zip {
         } catch (error) {
             return new Buffer(str);
         }
+    }
+
+    private storeSymlinkAsFile(): boolean {
+        let storeSymlinkAsFile: boolean = false;
+        if (this.options &&
+            this.options.storeSymlinkAsFile === true) {
+            storeSymlinkAsFile = true;
+        }
+        return storeSymlinkAsFile;
     }
 }

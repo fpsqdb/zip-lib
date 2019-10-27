@@ -40,14 +40,14 @@ describe("zip", () => {
             await zl.archiveFile(path.join(__dirname, "../resources/symlink"), zipFile, {
                 storeSymlinkAsFile: true
             });
-            assert.ok(true, "zip symlink as file");
         } catch (error) {
             assert.fail(error);
         }
         try {
             const des = path.join(__dirname, "../unzips/symlink_asfile");
             await zl.extract(zipFile, des, {
-                overwrite: true
+                overwrite: true,
+                symlinkAsFileOnWindows: false,
             });
             const stat = await util.lstat(path.join(des, "symlink"));
             if (stat.isSymbolicLink()) {

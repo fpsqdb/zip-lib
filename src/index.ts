@@ -10,7 +10,7 @@ export * from "./unzip";
  * @param options 
  */
 export function archiveFile(file: string, zipFile: string, options?: IZipOptions): Promise<void> {
-    const zip = new Zip();
+    const zip = new Zip(options);
     zip.addFile(file);
     return zip.archive(zipFile);
 }
@@ -22,7 +22,7 @@ export function archiveFile(file: string, zipFile: string, options?: IZipOptions
  * @param options 
  */
 export function archiveFolder(folder: string, zipFile: string, options?: IZipOptions): Promise<void> {
-    const zip = new Zip();
+    const zip = new Zip(options);
     zip.addFolder(folder);
     return zip.archive(zipFile);
 }

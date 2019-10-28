@@ -1,8 +1,8 @@
 import * as yazl from "yazl";
-import * as fs from "fs";
+import { WriteStream, createWriteStream } from "fs";
 import * as exfs from "./fs";
 import * as path from "path";
-import * as util from './util';
+import * as util from "./util";
 
 interface ZipEntry {
     path: string;
@@ -35,7 +35,7 @@ export class Zip {
     private yazlFile: yazl.ZipFile;
     private isPipe: boolean = false;
     private isCanceled: boolean = false;
-    private zipStream: fs.WriteStream;
+    private zipStream: WriteStream;
     private zipFiles: ZipEntry[];
     private zipFolders: ZipEntry[];
 
@@ -102,16 +102,16 @@ export class Zip {
             }
             zip.end();
             if (!this.isCanceled) {
-                this.zipStream = fs.createWriteStream(zipFile);
-                this.zipStream.once('error', e);
-                this.zipStream.once('close', () => {
+                this.zipStream = createWriteStream(zipFile);
+                this.zipStream.once("error", e);
+                this.zipStream.once("close", () => {
                     if (this.isCanceled) {
                         e(this.canceled())
                     } else {
                         c(void 0)
                     }
                 });
-                zip.outputStream.once('error', e);
+                zip.outputStream.once("error", e);
                 zip.outputStream.pipe(this.zipStream);
                 this.isPipe = true;
             }

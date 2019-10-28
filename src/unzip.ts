@@ -1,9 +1,9 @@
 import * as yauzl from "yauzl";
 import * as exfs from "./fs";
-import * as fs from "fs";
+import { WriteStream, createWriteStream } from "fs";
 import * as path from "path";
-import { Readable } from 'stream';
-import * as util from './util';
+import { Readable } from "stream";
+import * as util from "./util";
 
 export interface IExtractOptions {
     /**
@@ -113,13 +113,13 @@ export class Unzip {
         zfile.readEntry();
         return new Promise<void>((c, e) => {
             const total: number = zfile.entryCount;
-            zfile.once('error', e);
-            zfile.once('close', () => {
+            zfile.once("error", e);
+            zfile.once("close", () => {
                 if (this.isCanceled) {
                     e(this.canceled());
-                } 
+                }
                 // If the zip content is empty, it will not receive the `zfile.on("entry")` event.
-                else if(total === 0) {
+                else if (total === 0) {
                     c(void 0);
                 }
             });
@@ -230,7 +230,7 @@ export class Unzip {
     }
 
     private async writeEntryToFile(readStream: Readable, entry: yauzl.Entry, filePath: string): Promise<void> {
-        let fileStream: fs.WriteStream;
+        let fileStream: WriteStream;
         this.cancelCallback = (err) => {
             this.cancelCallback = undefined;
             if (fileStream) {
@@ -243,7 +243,7 @@ export class Unzip {
                 const mode = this.modeFromEntry(entry);
                 // see https://unix.stackexchange.com/questions/193465/what-file-mode-is-a-symlink
                 const isSymlink = ((mode & 0o170000) === 0o120000);
-                readStream.once('error', e);
+                readStream.once("error", e);
 
                 if (isSymlink && !this.symlinkToFile()) {
                     let linkContent: string = "";
@@ -258,9 +258,9 @@ export class Unzip {
                         this.createSymlink(linkContent, filePath).then(c, e);
                     })
                 } else {
-                    fileStream = fs.createWriteStream(filePath, { mode });
-                    fileStream.once('close', () => c());
-                    fileStream.once('error', e);
+                    fileStream = createWriteStream(filePath, { mode });
+                    fileStream.once("close", () => c());
+                    fileStream.once("error", e);
                     readStream.pipe(fileStream);
                 }
             } catch (error) {

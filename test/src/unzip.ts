@@ -18,7 +18,17 @@ describe("unzip", () => {
     });
     it("extract a zip file", async () => {
         try {
-            await zl.extract(path.join(__dirname, "../unzipResources/resources.zip"), path.join(__dirname, "../unzips/resources"));
+            const des = path.join(__dirname, "../unzips/resources");
+            await zl.extract(path.join(__dirname, "../unzipResources/resources.zip"), des, {
+                overwrite: true
+            });
+            await util.access(path.join(des, "«ταБЬℓσ»"));
+            await util.access(path.join(des, "name with space/empty folder"));
+            await util.access(path.join(des, "subfolder/test text.txt"));
+            await util.access(path.join(des, "subfolder/test.txt"));
+            await util.access(path.join(des, "subfolder/test.txt - shortcut.lnk"));
+            await util.access(path.join(des, "¹ º » ¼ ½ ¾.txt"));
+            await util.access(path.join(des, "src - shortcut.lnk"));
             assert.ok(true, "extract a zip file");
         } catch (error) {
             assert.fail(error);

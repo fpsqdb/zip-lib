@@ -1,5 +1,4 @@
 import * as zl from "../../lib"
-import * as util from "../../lib/util"
 import * as path from "path";
 import * as assert from "assert";
 
@@ -27,16 +26,9 @@ describe("zip", () => {
             const zip = new zl.Zip();
             const target = path.join(__dirname, "../zips/package_cancel.zip");
             zip.addFile(path.join(__dirname, "../../package.json"));
-            setTimeout(async () => {
-                zip.cancel();
-                try {
-                    await util.access(target);
-                    assert.fail("cancel failed");
-                } catch (error) {
-                    assert.ok(true);
-                }
-            }, 1000);
             await zip.archive(target);
+            zip.cancel();
+            assert.ok(true, "cancel after zip completed");
         } catch (error) {
             if (error.name === "Canceled") {
                 assert.ok(true, "cancel after zip completed");

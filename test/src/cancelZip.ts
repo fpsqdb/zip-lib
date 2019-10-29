@@ -30,11 +30,7 @@ describe("zip", () => {
             zip.cancel();
             assert.ok(true, "cancel after zip completed");
         } catch (error) {
-            if (error.name === "Canceled") {
-                assert.ok(true, "cancel after zip completed");
-            } else {
-                assert.fail(error);
-            }
+            assert.fail(error);
         }
     });
 });

@@ -113,7 +113,17 @@ export class Unzip {
         zfile.readEntry();
         return new Promise<void>((c, e) => {
             const total: number = zfile.entryCount;
-            zfile.once("error", e);
+            zfile.once("error", (err) => {
+                // Error: EBADF: bad file descriptor, read
+                // EBADF error may occur when calling the cancel method
+                // Ignore the error if the `cancel` method has been called
+                if (this.isCanceled) {
+                    e(this.canceled());
+                }
+                else {
+                    e(err);
+                }
+            });
             zfile.once("close", () => {
                 if (this.isCanceled) {
                     e(this.canceled());

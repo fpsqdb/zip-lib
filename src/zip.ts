@@ -103,7 +103,15 @@ export class Zip {
             zip.end();
             if (!this.isCanceled) {
                 this.zipStream = createWriteStream(zipFile);
-                this.zipStream.once("error", e);
+                this.zipStream.once("error", (err) => {
+                    // Ignore the error if the `cancel` method has been called
+                    if (this.isCanceled) {
+                        e(this.canceled());
+                    }
+                    else {
+                        e(err);
+                    }
+                });
                 this.zipStream.once("close", () => {
                     if (this.isCanceled) {
                         e(this.canceled())

@@ -132,9 +132,17 @@ describe("fs helper", () => {
         it(target3, async () => {
             try {
                 await exfs.rimraf(target3);
-                assert.fail(`Should refuse to recursively delete ${target3}`);
+                if (process.platform === "win32") {
+                    assert.fail(`Should refuse to recursively delete ${target3}`);
+                } else {
+                    assert.ok(true);
+                }
             } catch (error) {
-                assert.ok(true);
+                if (process.platform === "win32") {
+                    assert.equal(error.message === `Refuse to recursively delete root, path: "${target3}"`, true);
+                } else {
+                    assert.fail(error);
+                }
             }
         });
     })

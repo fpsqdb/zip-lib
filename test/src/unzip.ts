@@ -34,6 +34,28 @@ describe("unzip", () => {
             assert.fail(error);
         }
     });
+    it("Extract a file that is not in zip format", async () => {
+        try {
+            const des = path.join(__dirname, "../unzips/invalid");
+            await zl.extract(path.join(__dirname, "../resources/¹ º » ¼ ½ ¾.txt"), des, {
+                overwrite: true
+            });
+            assert.fail("Extract a file that is not in zip format");
+        } catch (error) {
+            assert.ok(true, "Extract a file that is not in zip format");
+        }
+    });
+    it("extract an corrupted zip file", async () => {
+        try {
+            const des = path.join(__dirname, "../unzips/zip_corrupted");
+            await zl.extract(path.join(__dirname, "../unzipResources/zip_corrupted.zip"), des, {
+                overwrite: true
+            });
+            assert.fail("extract an corrupted zip file");
+        } catch (error) {
+            assert.ok(true, "extract an corrupted zip file");
+        }
+    });
     it("file name encoding", async () => {
         try {
             let expectedFileName = "¹ º » ¼ ½ ¾.txt";

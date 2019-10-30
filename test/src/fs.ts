@@ -20,16 +20,32 @@ describe("fs helper", () => {
             assert.equal(exfs.isRootPath("/test"), false);
         });
         it("d:", () => {
-            assert.equal(exfs.isRootPath("d:"), true);
+            if (process.platform === "win32") {
+                assert.equal(exfs.isRootPath("d:"), true);
+            } else {
+                assert.equal(exfs.isRootPath("d:"), false);
+            }
         });
         it("D:", () => {
-            assert.equal(exfs.isRootPath("D:"), true);
+            if (process.platform === "win32") {
+                assert.equal(exfs.isRootPath("D:"), true);
+            } else {
+                assert.equal(exfs.isRootPath("D:"), false);
+            }
         });
         it("d:/", () => {
-            assert.equal(exfs.isRootPath("d:/"), true);
+            if (process.platform === "win32") {
+                assert.equal(exfs.isRootPath("d:/"), true);
+            } else {
+                assert.equal(exfs.isRootPath("d:/"), false);
+            }
         });
         it("D:/", () => {
-            assert.equal(exfs.isRootPath("D:/"), true);
+            if (process.platform === "win32") {
+                assert.equal(exfs.isRootPath("D:/"), true);
+            } else {
+                assert.equal(exfs.isRootPath("D:/"), false);
+            }
         });
         it("D:/test", () => {
             assert.equal(exfs.isRootPath("D:/test"), false);

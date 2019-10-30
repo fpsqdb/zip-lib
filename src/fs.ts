@@ -70,6 +70,10 @@ export async function pathExists(path: string): Promise<boolean> {
 }
 
 export async function rimraf(target: string): Promise<void> {
+    if (isRootPath(target)) {
+        // refuse to recursively delete root
+        return Promise.reject(new Error(`Refuse to recursively delete root, path: "${target}"`));
+    }
     try {
         const stat = await util.lstat(target);
         // Folder delete (recursive) - NOT for symbolic links though!
@@ -115,4 +119,42 @@ async function mkdir(folder: string): Promise<void> {
             throw error; // rethrow original error
         }
     }
+}
+
+// "A"
+const charA: number = 65;
+// "Z"
+const charZ: number = 90;
+// "a"
+const chara: number = 97;
+// "z"
+const charz: number = 122;
+// ":"
+const charColon: number = 58;
+// "\"
+const charWinSep: number = 92;
+// "/"
+const cahrUnixSep: number = 47;
+function isDriveLetter(char0: number): boolean {
+    return char0 >= charA && char0 <= charZ || char0 >= chara && char0 <= charz;
+}
+const winSep: string = "\\";
+const unixSep: string = "/";
+export function isRootPath(path: string): boolean {
+    if (!path) {
+        return false;
+    }
+    if (path === winSep ||
+        path === unixSep) {
+        return true;
+    }
+    if (process.platform === "win32") {
+        if (path.length > 3) {
+            return false;
+        }
+        return isDriveLetter(path.charCodeAt(0))
+            && path.charCodeAt(1) === charColon
+            && (path.length === 2 || path.charCodeAt(2) === charWinSep || path.charCodeAt(2) === cahrUnixSep);
+    }
+    return false;
 }

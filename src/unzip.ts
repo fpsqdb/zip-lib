@@ -164,6 +164,7 @@ export class Unzip {
                         e(this.canceled());
                     } else {
                         e(error);
+                        this.closeZip();
                     }
                 }
             });

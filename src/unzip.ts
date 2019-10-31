@@ -47,6 +47,12 @@ export interface IEntryEvent {
 }
 
 class EntryEvent implements IEntryEvent {
+    /**
+     *
+     */
+    constructor(private _entryCount: number) {
+        
+    }
     private _entryName: string;
     get entryName(): string {
         return this._entryName;
@@ -55,12 +61,8 @@ class EntryEvent implements IEntryEvent {
         this._entryName = name;
     }
 
-    private _entryCount: number;
     get entryCount(): number {
         return this._entryCount;
-    }
-    set entryCount(count: number) {
-        this._entryCount = count;
     }
 
     private _isPrevented: boolean = false;
@@ -139,13 +141,12 @@ export class Unzip {
                 this.closeZip();
                 return;
             }
-            const entryEvent: EntryEvent = new EntryEvent();
+            const entryEvent: EntryEvent = new EntryEvent(total);
             zfile.on("entry", async (entry: yauzl.Entry) => {
                 // use UTF-8 in all situations
                 // see https://github.com/thejoshwolfe/yauzl/issues/84
                 const fileName = (entry.fileName as any as Buffer).toString("utf8")
                 entryEvent.entryName = fileName;
-                entryEvent.entryCount = total;
                 this.onEntryCallback(entryEvent);
                 try {
                     if (entryEvent.isPrevented) {

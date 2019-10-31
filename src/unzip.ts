@@ -145,7 +145,9 @@ export class Unzip {
             zfile.on("entry", async (entry: yauzl.Entry) => {
                 // use UTF-8 in all situations
                 // see https://github.com/thejoshwolfe/yauzl/issues/84
-                const fileName = (entry.fileName as any as Buffer).toString("utf8")
+                const rawName = (entry.fileName as any as Buffer).toString("utf8")
+                // allow backslash
+                const fileName = rawName.replace(/\\/g, "/");
                 entryEvent.entryName = fileName;
                 this.onEntryCallback(entryEvent);
                 try {

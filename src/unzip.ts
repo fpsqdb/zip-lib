@@ -51,7 +51,7 @@ class EntryEvent implements IEntryEvent {
      *
      */
     constructor(private _entryCount: number) {
-        
+
     }
     private _entryName: string;
     get entryName(): string {
@@ -148,6 +148,14 @@ export class Unzip {
                 const rawName = (entry.fileName as any as Buffer).toString("utf8")
                 // allow backslash
                 const fileName = rawName.replace(/\\/g, "/");
+                // Because `decodeStrings` is `false`, we need to manually verify the entryname
+                // see https://github.com/thejoshwolfe/yauzl#validatefilenamefilename
+                const errorMessage = yauzl.validateFileName(fileName);
+                if (errorMessage != null) {
+                    e(new Error(errorMessage));
+                    this.closeZip();
+                    return;
+                }
                 entryEvent.entryName = fileName;
                 this.onEntryCallback(entryEvent);
                 try {

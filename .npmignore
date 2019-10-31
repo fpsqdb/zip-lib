@@ -7,5 +7,6 @@ test
 .travis.yml
 package-lock.json
 zip-lib-*.tgz
+*.map
 lib/fs.d.ts
 lib/util.d.ts

@@ -3,6 +3,7 @@ src
 test
 .gitingore
 .github
+.vscode
 .npmignore
 .travis.yml
 package-lock.json

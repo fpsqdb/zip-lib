@@ -7,7 +7,7 @@ describe("zip", () => {
         try {
             await zl.archiveFile(path.join(__dirname, "../../package.json"), path.join(__dirname, "../zips/package.zip"));
             assert.ok(true, "zip single file");
-        } catch (error) {     
+        } catch (error) {
             assert.fail(error);
         }
     });
@@ -15,8 +15,8 @@ describe("zip", () => {
         try {
             await zl.archiveFile(path.join(__dirname, "asdfasdf.jsfasd"), path.join(__dirname, "../zips/safasdfafda.zip"));
             assert.fail("zip a file that does not exist");
-        } catch (error) {     
-            if(error.code === "ENOENT"){
+        } catch (error) {
+            if (error.code === "ENOENT") {
                 assert.ok(true, "code ENOENT as expected");
             } else {
                 assert.fail(error);

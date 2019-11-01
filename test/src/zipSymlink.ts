@@ -7,8 +7,8 @@ import * as fs from "fs";
 describe("zip", () => {
     it("zip symlink normal", async () => {
         const source = path.join(__dirname, "../resources/symlink");
-        if(process.platform === "win32"){
-            if(!fs.existsSync(source)){
+        if (process.platform === "win32") {
+            if (!fs.existsSync(source)) {
                 console.warn("Please run this test with administator.");
                 return;
             }
@@ -44,8 +44,8 @@ describe("zip", () => {
     });
     it("zip symlink as file", async () => {
         const source = path.join(__dirname, "../resources/symlink");
-        if(process.platform === "win32"){
-            if(!fs.existsSync(source)){
+        if (process.platform === "win32") {
+            if (!fs.existsSync(source)) {
                 console.warn("Please run this test with administator.");
                 return;
             }

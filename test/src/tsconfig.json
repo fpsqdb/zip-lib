@@ -1,21 +1,21 @@
 {
-	"compilerOptions": {
-		"module": "commonjs",
-		"baseUrl": ".",
+    "compilerOptions": {
+        "module": "commonjs",
+        "baseUrl": ".",
         "moduleResolution": "node",
         "target": "es5",
-		"outDir": "../out",
+        "outDir": "../out",
         "sourceMap": true,
-		"experimentalDecorators": true,
-		"allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
+        "allowSyntheticDefaultImports": true,
         "noImplicitAny": true,
-		"suppressImplicitAnyIndexErrors": true,
+        "suppressImplicitAnyIndexErrors": true,
         "skipLibCheck": true,
         "noUnusedLocals": true,
-		"noImplicitThis": true,
+        "noImplicitThis": true,
         "noImplicitReturns": true,
         "alwaysStrict": true,
         "strictBindCallApply": true,
         "strictNullChecks": true
-	}
+    }
 }

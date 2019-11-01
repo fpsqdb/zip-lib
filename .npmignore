@@ -5,6 +5,7 @@ test
 .github
 .vscode
 .npmignore
+.editorconfig
 .travis.yml
 package-lock.json
 zip-lib-*.tgz

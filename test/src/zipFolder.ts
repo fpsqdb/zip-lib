@@ -7,7 +7,7 @@ describe("zip", () => {
         try {
             await zl.archiveFolder(path.join(__dirname, "../resources"), path.join(__dirname, "../zips/resources.zip"));
             assert.ok(true, "zip folder");
-        } catch (error) {     
+        } catch (error) {
             assert.fail(error);
         }
     });
@@ -15,12 +15,12 @@ describe("zip", () => {
         try {
             await zl.archiveFolder(path.join(__dirname, "asdfasdfasdf"), path.join(__dirname, "../zips/dddafsdasdf.zip"));
             assert.fail("zip a folder that does not exist");
-        } catch (error) {   
-            if(error.code === "ENOENT"){
+        } catch (error) {
+            if (error.code === "ENOENT") {
                 assert.ok(true, "code ENOENT as expected");
             } else {
                 assert.fail(error);
             }
         }
-    }); 
+    });
 });

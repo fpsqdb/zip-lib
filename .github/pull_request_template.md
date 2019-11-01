@@ -14,7 +14,7 @@ Make sure tests pass on Travis
 
 **Code formatting**
 
-<!-- See the simple style guide. -->
+See `.editorconfig`
 
 **Closing issues**
 

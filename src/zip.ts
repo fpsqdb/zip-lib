@@ -3,6 +3,7 @@ import { WriteStream, createWriteStream } from "fs";
 import * as exfs from "./fs";
 import * as path from "path";
 import * as util from "./util";
+import { Cancelable } from "./cancelable";
 
 interface ZipEntry {
     path: string;
@@ -20,21 +21,21 @@ export interface IZipOptions {
 /**
  * Compress files or folders to a zip file.
  */
-export class Zip {
+export class Zip extends Cancelable {
     /**
      *
      */
     constructor(private options?: IZipOptions) {
+        super();
         this.yazlFile = new yazl.ZipFile();
         (this.yazlFile as any).once("error", (err: any) => {
-            this.stopPipe(err);
+            this.stopPipe(this.wrapError(err));
         });
         this.zipFiles = [];
         this.zipFolders = [];
     }
     private yazlFile: yazl.ZipFile;
     private isPipe: boolean = false;
-    private isCanceled: boolean = false;
     private zipStream: WriteStream;
     private zipFiles: ZipEntry[];
     private zipFolders: ZipEntry[];
@@ -42,8 +43,8 @@ export class Zip {
     private yazlErrorCallback?: (error: any) => void;
     /**
      * Adds a file from the file system at realPath into the zipfile as metadataPath.
-     * @param file 
-     * @param metadataPath Typically metadataPath would be calculated as path.relative(root, realPath). 
+     * @param file
+     * @param metadataPath Typically metadataPath would be calculated as path.relative(root, realPath).
      * A valid metadataPath must not start with "/" or /[A-Za-z]:\//, and must not contain "..".
      */
     public addFile(file: string, metadataPath?: string): void {
@@ -59,8 +60,8 @@ export class Zip {
 
     /**
      * Adds a folder from the file system at realPath into the zipfile as metadataPath.
-     * @param folder 
-     * @param metadataPath Typically metadataPath would be calculated as path.relative(root, realPath). 
+     * @param folder
+     * @param metadataPath Typically metadataPath would be calculated as path.relative(root, realPath).
      * A valid metadataPath must not start with "/" or /[A-Za-z]:\//, and must not contain "..".
      */
     public addFolder(folder: string, metadataPath?: string): void {
@@ -97,29 +98,25 @@ export class Zip {
                 }
                 await exfs.ensureFolder(path.dirname(zipFile));
             } catch (error) {
-                e(error);
+                e(this.wrapError(error));
                 return;
             }
             zip.end();
             if (!this.isCanceled) {
                 this.zipStream = createWriteStream(zipFile);
                 this.zipStream.once("error", (err) => {
-                    // Ignore the error if the `cancel` method has been called
-                    if (this.isCanceled) {
-                        e(this.canceled());
-                    }
-                    else {
-                        e(err);
-                    }
+                    e(this.wrapError(err));
                 });
                 this.zipStream.once("close", () => {
                     if (this.isCanceled) {
-                        e(this.canceled())
+                        e(this.canceledError())
                     } else {
                         c(void 0)
                     }
                 });
-                zip.outputStream.once("error", e);
+                zip.outputStream.once("error", (err) => {
+                    e(this.wrapError(err));
+                });
                 zip.outputStream.pipe(this.zipStream);
                 this.isPipe = true;
             }
@@ -131,7 +128,8 @@ export class Zip {
      * If the cancel method is called after the archive is complete, nothing will happen.
      */
     public cancel(): void {
-        this.stopPipe(this.canceled());
+        super.cancel();
+        this.stopPipe(this.canceledError());
     }
 
     private async addFileOrSymlink(zip: yazl.ZipFile, file: string, metadataPath: string): Promise<void> {
@@ -187,7 +185,7 @@ export class Zip {
                     }
                 }
             } else {
-                // If the folder is empty and the metadataPath has a value, 
+                // If the folder is empty and the metadataPath has a value,
                 // an empty folder should be created based on the metadataPath
                 if (folder.metadataPath) {
                     this.yazlFile.addEmptyDirectory(folder.metadataPath);
@@ -197,7 +195,6 @@ export class Zip {
     }
 
     private stopPipe(err: Error): void {
-        this.isCanceled = true;
         if (this.yazlErrorCallback) {
             this.yazlErrorCallback(err);
         }
@@ -206,15 +203,6 @@ export class Zip {
             this.zipStream.destroy(err);
             this.isPipe = false;
         }
-    }
-
-    /**
-     * Returns an error that signals cancellation.
-     */
-    private canceled(): Error {
-        let error = new Error("Canceled");
-        error.name = error.message;
-        return error;
     }
 
     private storeSymlinkAsFile(): boolean {

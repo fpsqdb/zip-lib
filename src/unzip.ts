@@ -4,26 +4,27 @@ import { WriteStream, createWriteStream } from "fs";
 import * as path from "path";
 import { Readable } from "stream";
 import * as util from "./util";
+import { Cancelable } from "./cancelable";
 
 export interface IExtractOptions {
     /**
-     * If it is true, the target directory will be deleted before extract. 
+     * If it is true, the target directory will be deleted before extract.
      * The default value is false.
      */
     overwrite?: boolean;
     /**
      * Extract symbolic links as files on windows.
      * The default value is true.
-     * 
+     *
      * On windows, the default security policy allows only administrators to create symbolic links.
-     * 
-     * When symlinkAsFileOnWindows is set to true, the symlink in the zip archive will be extracted as a normal file on Windows. 
+     *
+     * When symlinkAsFileOnWindows is set to true, the symlink in the zip archive will be extracted as a normal file on Windows.
      * When symlinkAsFileOnWindows is set to false, if the zip contains symlink, an EPERM error will be thrown under non-administrators.
      */
     symlinkAsFileOnWindows?: boolean
     /**
      * Called before an item is extracted.
-     * @param event 
+     * @param event
      */
     onEntry?: (event: IEntryEvent) => void;
 }
@@ -82,22 +83,21 @@ class EntryEvent implements IEntryEvent {
 /**
  * Extract the zip file.
  */
-export class Unzip {
+export class Unzip extends Cancelable {
     /**
      *
      */
     constructor(private options?: IExtractOptions) {
-
+        super();
     }
 
-    private isCanceled: boolean = false;
     private zipFile: yauzl.ZipFile | null;
 
     private cancelCallback?: (error: any) => void;
     /**
      * Extract the zip file to the specified location.
-     * @param zipFile 
-     * @param targetFolder 
+     * @param zipFile
+     * @param targetFolder
      * @param options
      */
     public async extract(zipFile: string, targetFolder: string): Promise<void> {
@@ -107,7 +107,7 @@ export class Unzip {
             await exfs.rimraf(targetFolder);
         }
         if (this.isCanceled) {
-            return Promise.reject(this.canceled());
+            return Promise.reject(this.canceledError());
         }
         await exfs.ensureFolder(targetFolder);
         const zfile = await this.openZip(zipFile);
@@ -119,23 +119,18 @@ export class Unzip {
                 // Error: EBADF: bad file descriptor, read
                 // EBADF error may occur when calling the cancel method
                 // Ignore the error if the `cancel` method has been called
-                if (this.isCanceled) {
-                    e(this.canceled());
-                }
-                else {
-                    e(err);
-                }
+                e(this.wrapError(err));
             });
             zfile.once("close", () => {
                 if (this.isCanceled) {
-                    e(this.canceled());
+                    e(this.canceledError());
                 }
                 // If the zip content is empty, it will not receive the `zfile.on("entry")` event.
                 else if (total === 0) {
                     c(void 0);
                 }
             });
-            // Because openZip is an asynchronous method, openZip may not be completed when calling cancel, 
+            // Because openZip is an asynchronous method, openZip may not be completed when calling cancel,
             // so we need to check if it has been canceled after the openZip method returns.
             if (this.isCanceled) {
                 this.closeZip();
@@ -170,12 +165,8 @@ export class Unzip {
                         c();
                     }
                 } catch (error) {
-                    if (this.isCanceled) {
-                        e(this.canceled());
-                    } else {
-                        e(error);
-                        this.closeZip();
-                    }
+                    e(this.wrapError(error));
+                    this.closeZip();
                 }
             });
         });
@@ -186,9 +177,9 @@ export class Unzip {
      * If the cancel method is called after the extract is complete, nothing will happen.
      */
     public cancel(): void {
-        this.isCanceled = true;
+        super.cancel();
         if (this.cancelCallback) {
-            this.cancelCallback(this.canceled());
+            this.cancelCallback(this.canceledError());
         }
         this.closeZip();
     }
@@ -208,7 +199,7 @@ export class Unzip {
                 decodeStrings: false
             }, (err, zfile) => {
                 if (err) {
-                    e(err);
+                    e(this.wrapError(err));
                 } else {
                     c(zfile!)
                 }
@@ -233,7 +224,7 @@ export class Unzip {
         return new Promise<Readable>((c, e) => {
             zfile.openReadStream(entry, (err, readStream) => {
                 if (err) {
-                    e(err);
+                    e(this.wrapError(err));
                 } else {
                     c(readStream!);
                 }
@@ -265,7 +256,9 @@ export class Unzip {
                 const mode = this.modeFromEntry(entry);
                 // see https://unix.stackexchange.com/questions/193465/what-file-mode-is-a-symlink
                 const isSymlink = ((mode & 0o170000) === 0o120000);
-                readStream.once("error", e);
+                readStream.once("error", (err) => {
+                    e(this.wrapError(err));
+                });
 
                 if (isSymlink && !this.symlinkToFile()) {
                     let linkContent: string = "";
@@ -282,11 +275,13 @@ export class Unzip {
                 } else {
                     fileStream = createWriteStream(filePath, { mode });
                     fileStream.once("close", () => c());
-                    fileStream.once("error", e);
+                    fileStream.once("error", (err) => {
+                        e(this.wrapError(err));
+                    });
                     readStream.pipe(fileStream);
                 }
             } catch (error) {
-                e(error);
+                e(this.wrapError(error));
             }
         });
     }
@@ -301,15 +296,6 @@ export class Unzip {
 
     private async createSymlink(linkContent: string, des: string): Promise<void> {
         await util.symlink(linkContent, des);
-    }
-
-    /**
-     * Returns an error that signals cancellation.
-     */
-    private canceled(): Error {
-        let error = new Error("Canceled");
-        error.name = error.message;
-        return error;
     }
 
     private isOverwrite(): boolean {

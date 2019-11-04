@@ -27,10 +27,6 @@ export class Zip extends Cancelable {
      */
     constructor(private options?: IZipOptions) {
         super();
-        this.yazlFile = new yazl.ZipFile();
-        (this.yazlFile as any).once("error", (err: any) => {
-            this.stopPipe(this.wrapError(err));
-        });
         this.zipFiles = [];
         this.zipFolders = [];
     }
@@ -81,6 +77,9 @@ export class Zip extends Cancelable {
         }
         this.isCanceled = false;
         this.isPipe = false;
+        // Re-instantiate yazl every time the archive method is called to ensure that files are not added repeatedly.
+        // This will also make the Zip class reusable.
+        this.initYazl();
         return new Promise<void>(async (c, e) => {
             this.yazlErrorCallback = (err: any) => {
                 this.yazlErrorCallback = undefined;
@@ -130,6 +129,13 @@ export class Zip extends Cancelable {
     public cancel(): void {
         super.cancel();
         this.stopPipe(this.canceledError());
+    }
+
+    private initYazl(): void {
+        this.yazlFile = new yazl.ZipFile();
+        (this.yazlFile as any).once("error", (err: any) => {
+            this.stopPipe(this.wrapError(err));
+        });
     }
 
     private async addFileOrSymlink(zip: yazl.ZipFile, file: string, metadataPath: string): Promise<void> {

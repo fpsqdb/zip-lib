@@ -37,7 +37,7 @@ You can use **zip-lib** to compress files or folders.
 ### Zip single file
 
 ```js
-var zl = require("zip-lib");
+const zl = require("zip-lib");
 
 zl.archiveFile("path/to/file.txt", "path/to/target.zip").then(function () {
     console.log("done");
@@ -49,7 +49,7 @@ zl.archiveFile("path/to/file.txt", "path/to/target.zip").then(function () {
 ### Zip single folder
 
 ```js
-var zl = require("zip-lib");
+const zl = require("zip-lib");
 
 zl.archiveFolder("path/to/folder", "path/to/target.zip").then(function () {
     console.log("done");
@@ -61,7 +61,7 @@ zl.archiveFolder("path/to/folder", "path/to/target.zip").then(function () {
 ## Unzip
 
 ```js
-var zl = require("zip-lib");
+const zl = require("zip-lib");
 
 zl.extract("path/to/target.zip", "path/to/target").then(function () {
     console.log("done");
@@ -75,9 +75,9 @@ zl.extract("path/to/target.zip", "path/to/target").then(function () {
 ### Zip multiple files and folders
 
 ```js
-var zl = require("zip-lib");
+const zl = require("zip-lib");
 
-var zip = new zl.Zip();
+const zip = new zl.Zip();
 // Adds a file from the file system
 zip.addFile("path/to/file.txt");
 // Adds a folder from the file system, putting its contents at the root of archive
@@ -116,9 +116,9 @@ path/to/target.zip
 ### Zip with metadata
 
 ```js
-var zl = require("zip-lib");
+const zl = require("zip-lib");
 
-var zip = new zl.Zip();
+const zip = new zl.Zip();
 // Adds a file from the file system
 zip.addFile("path/to/file.txt", "renamedFile.txt");
 zip.addFile("path/to/file2.txt", "folder/file.txt");
@@ -162,9 +162,9 @@ path/to/target.zip
 Using `onEntry` callback we can know the current progress of extracting and control the extraction operation. See [IExtractOptions](#iextractoptions).
 
 ```js
-var zl = require("zip-lib");
+const zl = require("zip-lib");
 
-var unzip = new zl.Unzip({
+const unzip = new zl.Unzip({
     // Called before an item is extracted.
     onEntry: function (event) {
         console.log(event.entryCount, event.entryName);
@@ -181,9 +181,9 @@ unzip.extract("path/to/target.zip", "path/to/target").then(function () {
 The following code shows how to exclude the `__MACOSX` folder in the zip file when extracting. See [IExtractOptions](#iextractoptions).
 
 ```js
-var zl = require("zip-lib");
+const zl = require("zip-lib");
 
-var unzip = new zl.Unzip({
+const unzip = new zl.Unzip({
     // Called before an item is extracted.
     onEntry: function (event) {
         if (/^__MACOSX\//.test(event.entryName)) {
@@ -203,9 +203,9 @@ unzip.extract("path/to/target.zip", "path/to/target").then(function () {
 If the `cancel` method is called after the archive is complete, nothing will happen.
 
 ```js
-var zl = require("zip-lib");
+const zl = require("zip-lib");
 
-var zip = new zl.Zip();
+const zip = new zl.Zip();
 zip.addFile("path/to/file.txt");
 zip.archive("path/to/target.zip").then(function () {
     console.log("done");
@@ -225,9 +225,9 @@ zip.cancel();
 If the `cancel` method is called after the extract is complete, nothing will happen.
 
 ```js
-var zl = require("zip-lib");
+const zl = require("zip-lib");
 
-var unzip = new zl.Unzip();
+const unzip = new zl.Unzip();
 unzip.extract("path/to/target.zip", "path/to/target").then(function () {
     console.log("done");
 }, function (err) {

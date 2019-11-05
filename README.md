@@ -1,5 +1,5 @@
-# zip-lib 
-zip and unzip library for node. 
+# zip-lib
+zip and unzip library for node.
 
 [![npm Package](https://img.shields.io/npm/v/zip-lib.svg)](https://www.npmjs.org/package/zip-lib) [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fpsqdb/zip-lib/blob/master/LICENSE) ![node](https://img.shields.io/node/v/zip-lib) [![Build Status](https://travis-ci.org/fpsqdb/zip-lib.svg?branch=master)](https://travis-ci.org/fpsqdb/zip-lib)
 
@@ -21,7 +21,7 @@ npm install zip-lib
     - [Unzip with entry callback](#unzip-with-entry-callback)
     - [Unzip and exclude specified entries](#unzip-and-exclude-specified-entries)
     - [Cancel zip](#cancel-zip)
-    - [Cancel unzip](#cancel-unzip)  
+    - [Cancel unzip](#cancel-unzip)
 * [API](#api)
     - Method: [archiveFile](#archivefile)
     - Method: [archiveFolder](#archivefolder)
@@ -285,7 +285,7 @@ Compress files or folders to a zip file.
 
 **Constructor: new Zip([options])**
 
-- `options?`: [IZipOptions](#izipoptions) 
+- `options?`: [IZipOptions](#izipoptions)
 
 **Method: addFile(file, [metadataPath])**
 
@@ -344,13 +344,17 @@ Returns: `void`
 ### Options: IZipOptions <a id="izipoptions"></a>
 
 Object
-- `storeSymlinkAsFile?`: Boolean (optional) - Store symbolic links as files. The default value is `false`.
+- `followSymlinks?`: Boolean (optional) - Indicates how to handle when the given path is a symbolic link. The default value is `false`.<br>`true`: add the target of the symbolic link to the zip.<br>`false`: add symbolic link itself to the zip.
 
 ### Options: IExtractOptions <a id="iextractoptions"></a>
 
 Object
 - `overwrite?`: String (optional) - If it is true, the target directory will be deleted before extract. The default value is `false`.
-- `symlinkAsFileOnWindows?`: Boolean (optional) - Extract symbolic links as files on windows. The default value is `true`. On windows, the default security policy allows only administrators to create symbolic links. <br>When `symlinkAsFileOnWindows` is set to `true`, the symlink in the zip archive will be extracted as a normal file on Windows. When `symlinkAsFileOnWindows` is set to `false`, if the zip contains symlink, an `EPERM` error will be thrown under non-administrators.
+- `symlinkAsFileOnWindows?`: Boolean (optional) - Extract symbolic links as files on Windows. This value is only available on Windows and ignored on other platforms. The default value is `true`.
+
+    > On Windows, the default security policy allows only administrators to create symbolic links.
+
+    If `true`, the symlink in the zip will be extracted as a normal file on Windows.<br>If `false`, the symlink in the zip will be extracted as a symlink correctly on Windows, but an `EPERM` error will be thrown under non-administrators.
 - `onEntry?`: Function (optional) - Called before an item is extracted.<br>Arguments:
     - `event`: Object - Represents an event that an entry is about to be extracted.
         - `entryName`: String (readonly) - Entry name.

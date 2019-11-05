@@ -8,18 +8,19 @@ import { Cancelable } from "./cancelable";
 
 export interface IExtractOptions {
     /**
-     * If it is true, the target directory will be deleted before extract.
-     * The default value is false.
+     * If it is `true`, the target directory will be deleted before extract.
+     * The default value is `false`.
      */
     overwrite?: boolean;
     /**
-     * Extract symbolic links as files on windows.
-     * The default value is true.
+     * Extract symbolic links as files on Windows. This value is only available on Windows and ignored on other platforms.
+     * The default value is `true`.
      *
-     * On windows, the default security policy allows only administrators to create symbolic links.
+     * > On Windows, the default security policy allows only administrators to create symbolic links.
      *
-     * When symlinkAsFileOnWindows is set to true, the symlink in the zip archive will be extracted as a normal file on Windows.
-     * When symlinkAsFileOnWindows is set to false, if the zip contains symlink, an EPERM error will be thrown under non-administrators.
+     * If `true`, the symlink in the zip will be extracted as a normal file on Windows.
+     *
+     * If `false`, the symlink in the zip will be extracted as a symlink correctly on Windows, but an `EPERM` error will be thrown under non-administrators.
      */
     symlinkAsFileOnWindows?: boolean
     /**

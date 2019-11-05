@@ -12,10 +12,15 @@ interface ZipEntry {
 
 export interface IZipOptions {
     /**
-     * Store symbolic links as files.
-     * The default value is false.
+     * Indicates how to handle when the given path is a symbolic link.
+     *
+     * `true`: add the target of the symbolic link to the zip.
+     *
+     * `false`: add symbolic link itself to the zip.
+     *
+     * The default value is `false`.
      */
-    storeSymlinkAsFile?: boolean
+    followSymlinks?: boolean
 }
 
 /**
@@ -139,7 +144,7 @@ export class Zip extends Cancelable {
     }
 
     private async addFileOrSymlink(zip: yazl.ZipFile, file: string, metadataPath: string): Promise<void> {
-        if (this.storeSymlinkAsFile()) {
+        if (this.followSymlink()) {
             zip.addFile(file, metadataPath);
         } else {
             const stat = await util.lstat(file);
@@ -184,7 +189,7 @@ export class Zip extends Cancelable {
                             mtime: entry.mtime,
                             mode: entry.mode
                         });
-                    } else if (entry.type === "symlink" && !this.storeSymlinkAsFile()) {
+                    } else if (entry.type === "symlink" && !this.followSymlink()) {
                         await this.addSymlink(this.yazlFile, entry, metadataPath);
                     } else {
                         this.yazlFile.addFile(entry.path, metadataPath);
@@ -211,12 +216,12 @@ export class Zip extends Cancelable {
         }
     }
 
-    private storeSymlinkAsFile(): boolean {
-        let storeSymlinkAsFile: boolean = false;
+    private followSymlink(): boolean {
+        let followSymlink: boolean = false;
         if (this.options &&
-            this.options.storeSymlinkAsFile === true) {
-            storeSymlinkAsFile = true;
+            this.options.followSymlinks === true) {
+            followSymlink = true;
         }
-        return storeSymlinkAsFile;
+        return followSymlink;
     }
 }

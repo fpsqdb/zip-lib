@@ -53,7 +53,7 @@ describe("zip", () => {
         const zipFile = path.join(__dirname, "../zips/symlink_asfile.zip");
         try {
             await zl.archiveFile(source, zipFile, {
-                storeSymlinkAsFile: true
+                followSymlinks: true
             });
         } catch (error) {
             assert.fail(error);

@@ -13,7 +13,7 @@
         "url": "https://github.com/fpsqdb/zip-lib.git"
     },
     "engines": {
-        "node": ">=5.10.0"
+        "node": ">=8"
     },
     "keywords": [
         "zip",
@@ -24,7 +24,6 @@
     "author": "fpsqdb",
     "license": "MIT",
     "dependencies": {
-        "tslib": "^1.10.0",
         "yauzl": "^2.10.0",
         "yazl": "^2.5.1"
     },

@@ -16,11 +16,13 @@ export interface IExtractOptions {
      * Extract symbolic links as files on Windows. This value is only available on Windows and ignored on other platforms.
      * The default value is `true`.
      *
-     * > On Windows, the default security policy allows only administrators to create symbolic links.
-     *
      * If `true`, the symlink in the zip will be extracted as a normal file on Windows.
      *
      * If `false`, the symlink in the zip will be extracted as a symlink correctly on Windows, but an `EPERM` error will be thrown under non-administrators.
+     *
+     * > ⚠**WARNING:** On Windows, the default security policy allows only administrators to create symbolic links.
+     * If you set `symlinkAsFileOnWindows` to `true` and the zip contains symlink,
+     * be sure to run the code under the administrator, otherwise an `EPERM` error will be thrown.
      */
     symlinkAsFileOnWindows?: boolean
     /**

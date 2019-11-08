@@ -104,7 +104,7 @@ async function mkdir(folder: string): Promise<void> {
     try {
         await util.mkdir(folder, 0o777);
     } catch (error) {
-        // ENOENT: a parent folder does not exist yet
+        // ENOENT: a parent folder does not exist yet or folder name is invalid.
         if (error.code === "ENOENT") {
             return Promise.reject(error);
         }

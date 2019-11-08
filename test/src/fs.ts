@@ -111,34 +111,36 @@ describe("fs helper", () => {
             const exist = await exfs.pathExists(target1);
             assert.equal(exist, true);
         });
-        let target2 = "D:";
+        let target2 = "/";
         it(target2, async () => {
             const rootExist = await exfs.pathExists(target2);
             await exfs.ensureFolder(target2);
             const exist = await exfs.pathExists(target2);
             assert.equal(exist, rootExist);
         });
-        let target3 = "D:/";
-        it(target3, async () => {
-            const rootExist = await exfs.pathExists(target3);
-            await exfs.ensureFolder(target3);
-            const exist = await exfs.pathExists(target3);
-            assert.equal(exist, rootExist);
-        });
-        let target4 = "/";
-        it(target4, async () => {
-            const rootExist = await exfs.pathExists(target4);
-            await exfs.ensureFolder(target4);
-            const exist = await exfs.pathExists(target4);
-            assert.equal(exist, rootExist);
-        });
-        let target5 = "z:";
-        it(target5, async () => {
-            const rootExist = await exfs.pathExists(target5);
-            await exfs.ensureFolder(target5);
-            const exist = await exfs.pathExists(target5);
-            assert.equal(exist, rootExist);
-        });
+        if (process.platform === "win32") {
+            let target3 = "D:";
+            it(target3, async () => {
+                const rootExist = await exfs.pathExists(target3);
+                await exfs.ensureFolder(target3);
+                const exist = await exfs.pathExists(target3);
+                assert.equal(exist, rootExist);
+            });
+            let target4 = "E:/";
+            it(target4, async () => {
+                const rootExist = await exfs.pathExists(target4);
+                await exfs.ensureFolder(target4);
+                const exist = await exfs.pathExists(target4);
+                assert.equal(exist, rootExist);
+            });
+            let target5 = "z:";
+            it(target5, async () => {
+                const rootExist = await exfs.pathExists(target5);
+                await exfs.ensureFolder(target5);
+                const exist = await exfs.pathExists(target5);
+                assert.equal(exist, rootExist);
+            });
+        }
         let target6 = path.join(__dirname, "../unzips/test/sub folder/test:");
         it(target6, async () => {
             try {

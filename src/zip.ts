@@ -1,5 +1,5 @@
 import * as yazl from "yazl";
-import { WriteStream, createWriteStream } from "fs";
+import { WriteStream, createWriteStream, createReadStream } from "fs";
 import * as exfs from "./fs";
 import * as path from "path";
 import * as util from "./util";
@@ -148,17 +148,31 @@ export class Zip extends Cancelable {
             zip.addFile(file, metadataPath);
         } else {
             const stat = await util.lstat(file);
+            const entry: exfs.FileEntry = {
+                path: file,
+                type: "file",
+                mtime: stat.mtime,
+                mode: stat.mode
+            };
             if (stat.isSymbolicLink()) {
-                await this.addSymlink(zip, {
-                    path: file,
-                    type: "file",
-                    mtime: stat.mtime,
-                    mode: stat.mode
-                }, metadataPath)
+                await this.addSymlink(zip, entry, metadataPath)
             } else {
-                zip.addFile(file, metadataPath);
+                this.addFileStream(zip, entry, metadataPath)
             }
         }
+    }
+
+    private addFileStream(zip: yazl.ZipFile, file: exfs.FileEntry, metadataPath: string): void {
+        const fileStream = createReadStream(file.path);
+        fileStream.once("error", (err) => {
+            this.stopPipe(this.wrapError(err));
+        });
+        // If the file attribute is known, add the entry using `addReadStream`,
+        // this can reduce the number of calls to the `fs.stat` method.
+        zip.addReadStream(fileStream, metadataPath, {
+            mode: file.mode,
+            mtime: file.mtime
+        });
     }
 
     private async addSymlink(zip: yazl.ZipFile, file: exfs.FileEntry, metadataPath: string): Promise<void> {
@@ -192,7 +206,7 @@ export class Zip extends Cancelable {
                     } else if (entry.type === "symlink" && !this.followSymlink()) {
                         await this.addSymlink(this.yazlFile, entry, metadataPath);
                     } else {
-                        this.yazlFile.addFile(entry.path, metadataPath);
+                        this.addFileStream(this.yazlFile, entry, metadataPath);
                     }
                 }
             } else {

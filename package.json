@@ -28,12 +28,12 @@
         "yazl": "^2.5.1"
     },
     "devDependencies": {
-        "@types/mocha": "^5.2.7",
-        "@types/node": "^8.10.59",
+        "@types/mocha": "^7.0.2",
+        "@types/node": "^8.10.60",
         "@types/yauzl": "^2.9.1",
         "@types/yazl": "^2.4.2",
-        "mocha": "^6.2.2",
-        "rimraf": "^3.0.0",
-        "typescript": "^3.7.2"
+        "mocha": "^7.1.2",
+        "rimraf": "^3.0.2",
+        "typescript": "^3.8.3"
     }
 }

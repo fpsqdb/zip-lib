@@ -111,7 +111,7 @@ async function mkdir(folder: string): Promise<void> {
         // Any other error: check if folder exists and
         // return normally in that case if its a folder
         try {
-            const fileStat = await util.lstat(folder);
+            const fileStat = await util.stat(folder);
             if (!fileStat.isDirectory()) {
                 return Promise.reject(new Error(`"${folder}" exists and is not a directory.`));
             }

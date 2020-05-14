@@ -234,12 +234,18 @@ export class Unzip extends Cancelable {
 
     private async extractEntry(zfile: yauzl.ZipFile, entry: yauzl.Entry, decodeEntryFileName: string, targetPath: string): Promise<void> {
         const filePath = path.join(targetPath, decodeEntryFileName);
-        await exfs.ensureFolder(path.dirname(filePath));
+        const fileDir = path.dirname(filePath);
+        await exfs.ensureFolder(fileDir);
+        const realFilePath = await util.realpath(fileDir);
+        const realTargetPath = await util.realpath(targetPath);
+        if(realFilePath.indexOf(realTargetPath) != 0) {
+            const error = new Error(`Refuse to write file outside "${targetPath}", path: "${realFilePath}"`);
+            error.name = "AFWRITE";
+            return Promise.reject(error);
+        }
         const readStream = await this.openZipFileStream(zfile, entry);
-        readStream.on("end", () => {
-            zfile.readEntry();
-        });
         await this.writeEntryToFile(readStream, entry, filePath);
+        zfile.readEntry();
     }
 
     private async writeEntryToFile(readStream: Readable, entry: yauzl.Entry, filePath: string): Promise<void> {

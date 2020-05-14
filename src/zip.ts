@@ -91,21 +91,6 @@ export class Zip extends Cancelable {
                 e(err);
             };
             const zip = this.yazlFile;
-            try {
-                const files = this.zipFiles;
-                for (let fi = 0; fi < files.length; fi++) {
-                    const file = files[fi];
-                    await this.addFileOrSymlink(zip, file.path, file.metadataPath!);
-                }
-                if (this.zipFolders.length > 0) {
-                    await this.walkDir(this.zipFolders);
-                }
-                await exfs.ensureFolder(path.dirname(zipFile));
-            } catch (error) {
-                e(this.wrapError(error));
-                return;
-            }
-            zip.end();
             if (!this.isCanceled) {
                 this.zipStream = createWriteStream(zipFile);
                 this.zipStream.once("error", (err) => {
@@ -124,6 +109,21 @@ export class Zip extends Cancelable {
                 zip.outputStream.pipe(this.zipStream);
                 this.isPipe = true;
             }
+            try {
+                const files = this.zipFiles;
+                for (let fi = 0; fi < files.length; fi++) {
+                    const file = files[fi];
+                    await this.addFileOrSymlink(zip, file.path, file.metadataPath!);
+                }
+                if (this.zipFolders.length > 0) {
+                    await this.walkDir(this.zipFolders);
+                }
+                await exfs.ensureFolder(path.dirname(zipFile));
+            } catch (error) {
+                e(this.wrapError(error));
+                return;
+            }
+            zip.end();
         });
     }
 
@@ -157,21 +157,28 @@ export class Zip extends Cancelable {
             if (stat.isSymbolicLink()) {
                 await this.addSymlink(zip, entry, metadataPath)
             } else {
-                this.addFileStream(zip, entry, metadataPath)
+                await this.addFileStream(zip, entry, metadataPath)
             }
         }
     }
 
-    private addFileStream(zip: yazl.ZipFile, file: exfs.FileEntry, metadataPath: string): void {
-        const fileStream = createReadStream(file.path);
-        fileStream.once("error", (err) => {
-            this.stopPipe(this.wrapError(err));
-        });
-        // If the file attribute is known, add the entry using `addReadStream`,
-        // this can reduce the number of calls to the `fs.stat` method.
-        zip.addReadStream(fileStream, metadataPath, {
-            mode: file.mode,
-            mtime: file.mtime
+    private addFileStream(zip: yazl.ZipFile, file: exfs.FileEntry, metadataPath: string): Promise<void> {
+        return new Promise<void>((c, e) => {
+            const fileStream = createReadStream(file.path);
+            fileStream.once("error", (err) => {
+                const wrappedError = this.wrapError(err);
+                this.stopPipe(wrappedError);
+                e(wrappedError);
+            });
+            fileStream.once("close", () => {
+                c();
+            });
+            // If the file attribute is known, add the entry using `addReadStream`,
+            // this can reduce the number of calls to the `fs.stat` method.
+            zip.addReadStream(fileStream, metadataPath, {
+                mode: file.mode,
+                mtime: file.mtime
+            });
         });
     }
 
@@ -206,7 +213,7 @@ export class Zip extends Cancelable {
                     } else if (entry.type === "symlink" && !this.followSymlink()) {
                         await this.addSymlink(this.yazlFile, entry, metadataPath);
                     } else {
-                        this.addFileStream(this.yazlFile, entry, metadataPath);
+                        await this.addFileStream(this.yazlFile, entry, metadataPath);
                     }
                 }
             } else {

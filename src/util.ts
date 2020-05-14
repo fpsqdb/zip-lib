@@ -9,6 +9,14 @@ export function mkdir(path: fs.PathLike, mode?: string | number | null | undefin
     return util.promisify(fs.mkdir)(path, mode);
 }
 
+export function realpath(path: fs.PathLike): Promise<string> {
+    return util.promisify(fs.realpath)(path);
+}
+
+export function stat(path: fs.PathLike): Promise<fs.Stats> {
+    return util.promisify(fs.stat)(path);
+}
+
 export function lstat(path: fs.PathLike): Promise<fs.Stats> {
     return util.promisify(fs.lstat)(path);
 }

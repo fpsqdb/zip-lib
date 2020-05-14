@@ -85,6 +85,7 @@ export class Zip extends Cancelable {
         // Re-instantiate yazl every time the archive method is called to ensure that files are not added repeatedly.
         // This will also make the Zip class reusable.
         this.initYazl();
+        await exfs.ensureFolder(path.dirname(zipFile));
         return new Promise<void>(async (c, e) => {
             this.yazlErrorCallback = (err: any) => {
                 this.yazlErrorCallback = undefined;
@@ -118,7 +119,6 @@ export class Zip extends Cancelable {
                 if (this.zipFolders.length > 0) {
                     await this.walkDir(this.zipFolders);
                 }
-                await exfs.ensureFolder(path.dirname(zipFile));
             } catch (error) {
                 e(this.wrapError(error));
                 return;

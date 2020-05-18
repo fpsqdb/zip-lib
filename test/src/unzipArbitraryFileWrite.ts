@@ -6,6 +6,7 @@ describe("unzip", () => {
     it("extract a zip file that attempt to write file outside ouput folder", async () => {
         try {
             await zl.extract(path.join(__dirname, "../unzipResources/arbitrary_file_write.zip"), path.join(__dirname, "../unzips/arbitrary_file_write"), {
+                overwrite: true,
                 symlinkAsFileOnWindows: false
             });
             assert.fail("extract a zip file that attempt to write file outside ouput folder");

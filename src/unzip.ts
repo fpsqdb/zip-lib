@@ -21,7 +21,7 @@ export interface IExtractOptions {
      * If `false`, the symlink in the zip will be extracted as a symlink correctly on Windows, but an `EPERM` error will be thrown under non-administrators.
      *
      * > ⚠**WARNING:** On Windows, the default security policy allows only administrators to create symbolic links.
-     * If you set `symlinkAsFileOnWindows` to `true` and the zip contains symlink,
+     * If you set `symlinkAsFileOnWindows` to `false` and the zip contains symlink,
      * be sure to run the code under the administrator, otherwise an `EPERM` error will be thrown.
      */
     symlinkAsFileOnWindows?: boolean

@@ -8,6 +8,7 @@ test
 .editorconfig
 .travis.yml
 package-lock.json
+tslint.json
 zip-lib-*.tgz
 *.map
 lib/fs.d.ts

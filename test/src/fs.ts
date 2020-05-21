@@ -1,4 +1,4 @@
-import * as exfs from "../../lib/fs"
+import * as exfs from "../../lib/fs";
 import * as path from "path";
 import * as assert from "assert";
 
@@ -56,29 +56,29 @@ describe("fs helper", () => {
     });
 
     describe("pathExists", () => {
-        let target1 = path.join(__dirname, "../resources");
+        const target1 = path.join(__dirname, "../resources");
         it(target1, async () => {
             const exist = await exfs.pathExists(target1);
             assert.equal(exist, true);
         });
-        let target2 = path.join(__dirname, "../asdfasdfa");
+        const target2 = path.join(__dirname, "../asdfasdfa");
         it(target2, async () => {
             const exist = await exfs.pathExists(target2);
             assert.equal(exist, false);
         });
-        let target3 = path.join(__dirname, "../resources/¹ º » ¼ ½ ¾.txt")
+        const target3 = path.join(__dirname, "../resources/¹ º » ¼ ½ ¾.txt");
         it(target3, async () => {
             const exist = await exfs.pathExists(target3);
             assert.equal(exist, true);
         });
-    })
+    });
 
     describe("readdirp", () => {
-        let target1 = path.join(__dirname, "../resources");
+        const target1 = path.join(__dirname, "../resources");
         it(target1, async () => {
             const files = await exfs.readdirp(target1);
             const symlinkExist = await exfs.pathExists(path.join(target1, "symlink"));
-            let exceptedFiles: string[] = [];
+            const exceptedFiles: string[] = [];
             exceptedFiles.push(path.join(target1, "«ταБЬℓσ»"));
             exceptedFiles.push(path.join(target1, "name with space/empty folder"));
             exceptedFiles.push(path.join(target1, "subfolder/test text.txt"));
@@ -102,16 +102,16 @@ describe("fs helper", () => {
                 }
             });
         });
-    })
+    });
 
     describe("ensureFolder", () => {
-        let target1 = path.join(__dirname, "../unzips/test/sub folder/sub");
+        const target1 = path.join(__dirname, "../unzips/test/sub folder/sub");
         it(target1, async () => {
             await exfs.ensureFolder(target1);
             const exist = await exfs.pathExists(target1);
             assert.equal(exist, true);
         });
-        let target2 = "/";
+        const target2 = "/";
         it(target2, async () => {
             const rootExist = await exfs.pathExists(target2);
             await exfs.ensureFolder(target2);
@@ -119,21 +119,21 @@ describe("fs helper", () => {
             assert.equal(exist, rootExist);
         });
         if (process.platform === "win32") {
-            let target3 = "D:";
+            const target3 = "D:";
             it(target3, async () => {
                 const rootExist = await exfs.pathExists(target3);
                 await exfs.ensureFolder(target3);
                 const exist = await exfs.pathExists(target3);
                 assert.equal(exist, rootExist);
             });
-            let target4 = "E:/";
+            const target4 = "E:/";
             it(target4, async () => {
                 const rootExist = await exfs.pathExists(target4);
                 await exfs.ensureFolder(target4);
                 const exist = await exfs.pathExists(target4);
                 assert.equal(exist, rootExist);
             });
-            let target5 = "z:";
+            const target5 = "z:";
             it(target5, async () => {
                 const rootExist = await exfs.pathExists(target5);
                 await exfs.ensureFolder(target5);
@@ -141,7 +141,7 @@ describe("fs helper", () => {
                 assert.equal(exist, rootExist);
             });
         }
-        let target6 = path.join(__dirname, "../unzips/test/sub folder/test:");
+        const target6 = path.join(__dirname, "../unzips/test/sub folder/test:");
         it(target6, async () => {
             try {
                 await exfs.ensureFolder(target6);
@@ -159,10 +159,10 @@ describe("fs helper", () => {
                 }
             }
         });
-    })
+    });
 
     describe("rimraf", () => {
-        let target1 = path.join(__dirname, "../unzips/test2/sub folder/sub");
+        const target1 = path.join(__dirname, "../unzips/test2/sub folder/sub");
         it(target1, async () => {
             await exfs.ensureFolder(target1);
             const target1Root = path.join(__dirname, "../unzips/test2");
@@ -170,13 +170,13 @@ describe("fs helper", () => {
             const exist = await exfs.pathExists(target1Root);
             assert.equal(exist, false);
         });
-        let target2 = path.join(__dirname, "../unzips/test3/sub folder/sub");
+        const target2 = path.join(__dirname, "../unzips/test3/sub folder/sub");
         it(target2, async () => {
             await exfs.rimraf(target2);
             const exist = await exfs.pathExists(target2);
             assert.equal(exist, false);
         });
-        let target3 = "z:";
+        const target3 = "z:";
         it(target3, async () => {
             try {
                 await exfs.rimraf(target3);
@@ -193,5 +193,5 @@ describe("fs helper", () => {
                 }
             }
         });
-    })
+    });
 });

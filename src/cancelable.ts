@@ -6,12 +6,6 @@ export interface ICancelable {
 }
 
 export abstract class Cancelable implements ICancelable {
-    /**
-     *
-     */
-    constructor() {
-
-    }
     protected isCanceled: boolean = false;
 
     public cancel(): void {
@@ -37,7 +31,7 @@ export abstract class Cancelable implements ICancelable {
      * Returns an error that signals cancellation.
      */
     protected canceledError(): Error {
-        let error = new Error("Canceled");
+        const error = new Error("Canceled");
         error.name = error.message;
         return error;
     }

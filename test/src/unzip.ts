@@ -1,5 +1,5 @@
-import * as zl from "../../lib"
-import * as util from "../../lib/util"
+import * as zl from "../../lib";
+import * as util from "../../lib/util";
 import * as path from "path";
 import * as assert from "assert";
 
@@ -58,7 +58,7 @@ describe("unzip", () => {
     });
     it("file name encoding", async () => {
         try {
-            let expectedFileName = "¹ º » ¼ ½ ¾.txt";
+            const expectedFileName = "¹ º » ¼ ½ ¾.txt";
             await zl.extract(path.join(__dirname, "../unzipResources/resources_macos.zip"), path.join(__dirname, "../unzips/resources_macos"));
             await util.access(path.join(__dirname, "../unzips/resources_macos/", expectedFileName));
             assert.ok(true, "file name encoding");

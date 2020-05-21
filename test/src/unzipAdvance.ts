@@ -1,4 +1,4 @@
-import * as zl from "../../lib"
+import * as zl from "../../lib";
 import * as path from "path";
 import * as assert from "assert";
 import * as exfs from "../../lib/fs";
@@ -6,7 +6,7 @@ import * as exfs from "../../lib/fs";
 describe("unzip", () => {
     it("extract a zip file with onEntry callback", async () => {
         try {
-            let total: number = 9;
+            const total: number = 9;
             let actual: number = 0;
             await zl.extract(path.join(__dirname, "../unzipResources/resources.zip"), path.join(__dirname, "../unzips/resources_sourcepath"), {
                 onEntry: (event: zl.IEntryEvent) => {

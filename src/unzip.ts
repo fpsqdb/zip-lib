@@ -24,7 +24,7 @@ export interface IExtractOptions {
      * If you set `symlinkAsFileOnWindows` to `false` and the zip contains symlink,
      * be sure to run the code under the administrator, otherwise an `EPERM` error will be thrown.
      */
-    symlinkAsFileOnWindows?: boolean
+    symlinkAsFileOnWindows?: boolean;
     /**
      * Called before an item is extracted.
      * @param event
@@ -140,7 +140,7 @@ export class Unzip extends Cancelable {
             zfile.on("entry", async (entry: yauzl.Entry) => {
                 // use UTF-8 in all situations
                 // see https://github.com/thejoshwolfe/yauzl/issues/84
-                const rawName = (entry.fileName as any as Buffer).toString("utf8")
+                const rawName = (entry.fileName as any as Buffer).toString("utf8");
                 // allow backslash
                 const fileName = rawName.replace(/\\/g, "/");
                 // Because `decodeStrings` is `false`, we need to manually verify the entryname
@@ -201,7 +201,7 @@ export class Unzip extends Cancelable {
                 if (err) {
                     e(this.wrapError(err));
                 } else {
-                    c(zfile!)
+                    c(zfile!);
                 }
             });
         });
@@ -238,7 +238,7 @@ export class Unzip extends Cancelable {
         await exfs.ensureFolder(fileDir);
         const realFilePath = await util.realpath(fileDir);
         const realTargetPath = await util.realpath(targetPath);
-        if(realFilePath.indexOf(realTargetPath) != 0) {
+        if (realFilePath.indexOf(realTargetPath) !== 0) {
             const error = new Error(`Refuse to write file outside "${targetPath}", path: "${realFilePath}"`);
             error.name = "AFWRITE";
             return Promise.reject(error);
@@ -277,7 +277,7 @@ export class Unzip extends Cancelable {
                     });
                     readStream.once("end", () => {
                         this.createSymlink(linkContent, filePath).then(c, e);
-                    })
+                    });
                 } else {
                     fileStream = createWriteStream(filePath, { mode });
                     fileStream.once("close", () => c());

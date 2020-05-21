@@ -20,7 +20,7 @@ export interface IZipOptions {
      *
      * The default value is `false`.
      */
-    followSymlinks?: boolean
+    followSymlinks?: boolean;
 }
 
 /**
@@ -68,7 +68,7 @@ export class Zip extends Cancelable {
     public addFolder(folder: string, metadataPath?: string): void {
         this.zipFolders.push({
             path: folder,
-            metadataPath: metadataPath
+            metadataPath
         });
     }
 
@@ -99,9 +99,9 @@ export class Zip extends Cancelable {
                 });
                 this.zipStream.once("close", () => {
                     if (this.isCanceled) {
-                        e(this.canceledError())
+                        e(this.canceledError());
                     } else {
-                        c(void 0)
+                        c(void 0);
                     }
                 });
                 zip.outputStream.once("error", (err) => {
@@ -112,8 +112,7 @@ export class Zip extends Cancelable {
             }
             try {
                 const files = this.zipFiles;
-                for (let fi = 0; fi < files.length; fi++) {
-                    const file = files[fi];
+                for (const file of files) {
                     await this.addFileOrSymlink(zip, file.path, file.metadataPath!);
                 }
                 if (this.zipFolders.length > 0) {
@@ -155,9 +154,9 @@ export class Zip extends Cancelable {
                 mode: stat.mode
             };
             if (stat.isSymbolicLink()) {
-                await this.addSymlink(zip, entry, metadataPath)
+                await this.addSymlink(zip, entry, metadataPath);
             } else {
-                await this.addFileStream(zip, entry, metadataPath)
+                await this.addFileStream(zip, entry, metadataPath);
             }
         }
     }
@@ -187,19 +186,17 @@ export class Zip extends Cancelable {
         zip.addBuffer(Buffer.from(linkTarget), metadataPath, {
             mtime: file.mtime,
             mode: file.mode
-        })
+        });
     }
 
     private async walkDir(folders: ZipEntry[]): Promise<void> {
-        for (let fi = 0; fi < folders.length; fi++) {
+        for (const folder of folders) {
             if (this.isCanceled) {
                 return;
             }
-            const folder = folders[fi];
             const entries = await exfs.readdirp(folder.path);
             if (entries.length > 0) {
-                for (let ei = 0; ei < entries.length; ei++) {
-                    const entry = entries[ei];
+                for (const entry of entries) {
                     if (this.isCanceled) {
                         return;
                     }

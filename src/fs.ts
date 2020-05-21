@@ -10,10 +10,10 @@ export interface FileEntry {
 export type FileType = "symlink" | "file" | "dir";
 
 export async function readdirp(folder: string): Promise<FileEntry[]> {
-    let result: FileEntry[] = [];
+    const result: FileEntry[] = [];
     const files = await util.readdir(folder);
-    for (let i = 0; i < files.length; i++) {
-        const file = path.join(folder, files[i]);
+    for (const item of files) {
+        const file = path.join(folder, item);
         const stat = await util.lstat(file);
         let fileType: FileType = "file";
         if (stat.isDirectory()) {
@@ -59,9 +59,9 @@ export async function ensureFolder(folder: string): Promise<void> {
     }
 }
 
-export async function pathExists(path: string): Promise<boolean> {
+export async function pathExists(target: string): Promise<boolean> {
     try {
-        await util.access(path);
+        await util.access(target);
         return true;
     }
     catch (error) {
@@ -140,21 +140,21 @@ function isDriveLetter(char0: number): boolean {
 }
 const winSep: string = "\\";
 const unixSep: string = "/";
-export function isRootPath(path: string): boolean {
-    if (!path) {
+export function isRootPath(target: string): boolean {
+    if (!target) {
         return false;
     }
-    if (path === winSep ||
-        path === unixSep) {
+    if (target === winSep ||
+        target === unixSep) {
         return true;
     }
     if (process.platform === "win32") {
-        if (path.length > 3) {
+        if (target.length > 3) {
             return false;
         }
-        return isDriveLetter(path.charCodeAt(0))
-            && path.charCodeAt(1) === charColon
-            && (path.length === 2 || path.charCodeAt(2) === charWinSep || path.charCodeAt(2) === cahrUnixSep);
+        return isDriveLetter(target.charCodeAt(0))
+            && target.charCodeAt(1) === charColon
+            && (target.length === 2 || target.charCodeAt(2) === charWinSep || target.charCodeAt(2) === cahrUnixSep);
     }
     return false;
 }

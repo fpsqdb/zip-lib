@@ -3,21 +3,20 @@ import * as util from "./util";
 
 export interface FileEntry {
     path: string;
+    isSymbolicLink: boolean;
     type: FileType;
     mtime: Date;
     mode: number;
 }
-export type FileType = "symlink" | "file" | "dir";
+export type FileType = "file" | "dir";
 
 export async function readdirp(folder: string): Promise<FileEntry[]> {
     const result: FileEntry[] = [];
     const files = await util.readdir(folder);
     for (const item of files) {
         const file = path.join(folder, item);
-        const stat = await util.lstat(file);
-        let fileType: FileType = "file";
-        if (stat.isDirectory()) {
-            fileType = "dir";
+        const entry = await getFileEntry(file);
+        if (!entry.isSymbolicLink && entry.type === "dir") {
             const subFiles = await readdirp(file);
             if (subFiles.length > 0) {
                 result.push(...subFiles);
@@ -25,19 +24,37 @@ export async function readdirp(folder: string): Promise<FileEntry[]> {
                 // continue and skip the code below
                 continue;
             }
-        } else {
-            if (stat.isSymbolicLink()) {
-                fileType = "symlink";
-            }
         }
-        result.push({
-            path: file,
-            type: fileType,
-            mtime: stat.mtime,
-            mode: stat.mode
-        });
+        result.push(entry);
     }
     return result;
+}
+
+export async function getFileEntry(target: string): Promise<FileEntry> {
+    const stat = await util.lstat(target);
+    let isSymbolicLink = false;
+    let fileType: FileType = "file";
+    if (stat.isDirectory()) {
+        fileType = "dir";
+    } else {
+        if (stat.isSymbolicLink()) {
+            isSymbolicLink = true;
+            // If the path is a link, we must instead use fs.stat() to find out if the
+            // link is a directory or not because lstat will always return the stat of
+            // the link which is always a file.
+            const actualStat = await util.stat(target);
+            if (actualStat.isDirectory()) {
+                fileType = "dir";
+            }
+        }
+    }
+    return {
+        path: target,
+        isSymbolicLink,
+        type: fileType,
+        mtime: stat.mtime,
+        mode: stat.mode
+    };
 }
 
 export async function ensureFolder(folder: string): Promise<void> {

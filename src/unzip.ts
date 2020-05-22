@@ -117,17 +117,22 @@ export class Unzip extends Cancelable {
         this.zipFile = zfile;
         zfile.readEntry();
         return new Promise<void>((c, e) => {
+            let anyError: Error | null = null;
             const total: number = zfile.entryCount;
             zfile.once("error", (err) => {
                 e(this.wrapError(err));
             });
             zfile.once("close", () => {
-                if (this.isCanceled) {
-                    e(this.canceledError());
-                }
-                // If the zip content is empty, it will not receive the `zfile.on("entry")` event.
-                else if (total === 0) {
-                    c(void 0);
+                if (anyError) {
+                    e(this.wrapError(anyError));
+                } else {
+                    if (this.isCanceled) {
+                        e(this.canceledError());
+                    }
+                    // If the zip content is empty, it will not receive the `zfile.on("entry")` event.
+                    else if (total === 0) {
+                        c(void 0);
+                    }
                 }
             });
             // Because openZip is an asynchronous method, openZip may not be completed when calling cancel,
@@ -147,8 +152,9 @@ export class Unzip extends Cancelable {
                 // see https://github.com/thejoshwolfe/yauzl#validatefilenamefilename
                 const errorMessage = yauzl.validateFileName(fileName);
                 if (errorMessage != null) {
-                    e(new Error(errorMessage));
+                    anyError = new Error(errorMessage);
                     this.closeZip();
+                    e(anyError);
                     return;
                 }
                 entryEvent.entryName = fileName;
@@ -165,8 +171,9 @@ export class Unzip extends Cancelable {
                         c();
                     }
                 } catch (error) {
-                    e(this.wrapError(error));
+                    anyError = this.wrapError(error);
                     this.closeZip();
+                    e(anyError);
                 }
             });
         });
@@ -301,7 +308,24 @@ export class Unzip extends Cancelable {
     }
 
     private async createSymlink(linkContent: string, des: string): Promise<void> {
-        await util.symlink(linkContent, des);
+        let linkType: "dir" | "file" | "junction" | null | undefined = "file";
+        if (/\/$/.test(linkContent)) {
+            linkType = "dir";
+        } else {
+            let targetPath = linkContent;
+            if (!path.isAbsolute(linkContent)) {
+                targetPath = path.join(path.dirname(des), linkContent);
+            }
+            try {
+                const stat = await util.stat(targetPath);
+                if(stat.isDirectory()) {
+                    linkType = "dir";
+                }
+            } catch (error) {
+                // ignore
+            }
+        }
+        await util.symlink(linkContent, des, linkType);
     }
 
     private isOverwrite(): boolean {

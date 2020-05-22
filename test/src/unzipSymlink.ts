@@ -11,11 +11,21 @@ describe("unzip", () => {
                 overwrite: true,
                 symlinkAsFileOnWindows: false
             });
-            const stat = await util.lstat(path.join(des, "symlink"));
-            if (stat.isSymbolicLink()) {
-                assert.ok(true, "extract a zip file contains symlink");
+            let passed = false;
+            const stat1 = await util.lstat(path.join(des, "symlink"));
+            if (stat1.isSymbolicLink()) {
+                passed = true;
             } else {
                 assert.fail(`${path.join(des, "symlink")} is not a symlink`);
+            }
+            const stat2 = await util.lstat(path.join(des, "subfolder_symlink"));
+            if (stat2.isSymbolicLink()) {
+                passed = true;
+            } else {
+                assert.fail(`${path.join(des, "subfolder_symlink")} is not a symlink`);
+            }
+            if (passed) {
+                assert.ok(true, "extract a zip file contains symlink");
             }
         } catch (error) {
             if (process.platform === "win32" &&

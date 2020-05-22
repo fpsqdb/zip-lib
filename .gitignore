@@ -5,3 +5,4 @@
 /test/unzips
 /zip-lib-*.tgz
 /test/resources/symlink
+/test/resources/subfolder_symlink

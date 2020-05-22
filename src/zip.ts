@@ -113,7 +113,8 @@ export class Zip extends Cancelable {
             try {
                 const files = this.zipFiles;
                 for (const file of files) {
-                    await this.addFileOrSymlink(zip, file.path, file.metadataPath!);
+                    const entry = await exfs.getFileEntry(file.path);
+                    await this.addEntry(zip, entry, file);
                 }
                 if (this.zipFolders.length > 0) {
                     await this.walkDir(this.zipFolders);
@@ -142,21 +143,26 @@ export class Zip extends Cancelable {
         });
     }
 
-    private async addFileOrSymlink(zip: yazl.ZipFile, file: string, metadataPath: string): Promise<void> {
-        if (this.followSymlink()) {
-            zip.addFile(file, metadataPath);
-        } else {
-            const stat = await util.lstat(file);
-            const entry: exfs.FileEntry = {
-                path: file,
-                type: "file",
-                mtime: stat.mtime,
-                mode: stat.mode
-            };
-            if (stat.isSymbolicLink()) {
-                await this.addSymlink(zip, entry, metadataPath);
+    private async addEntry(zip: yazl.ZipFile, entry: exfs.FileEntry, file: ZipEntry): Promise<void> {
+        if (entry.isSymbolicLink) {
+            if (this.followSymlink()) {
+                if (entry.type === "dir") {
+                    const realPath = await util.realpath(file.path);
+                    await this.walkDir([{ path: realPath, metadataPath: file.metadataPath }]);
+                } else {
+                    zip.addFile(file.path, file.metadataPath!);
+                }
             } else {
-                await this.addFileStream(zip, entry, metadataPath);
+                await this.addSymlink(zip, entry, file.metadataPath!);
+            }
+        } else {
+            if (entry.type === "dir") {
+                zip.addEmptyDirectory(file.metadataPath!, {
+                    mtime: entry.mtime,
+                    mode: entry.mode
+                });
+            } else {
+                await this.addFileStream(zip, entry, file.metadataPath!);
             }
         }
     }
@@ -202,16 +208,7 @@ export class Zip extends Cancelable {
                     }
                     const relativePath = path.relative(folder.path, entry.path);
                     const metadataPath = folder.metadataPath ? path.join(folder.metadataPath, relativePath) : relativePath;
-                    if (entry.type === "dir") {
-                        this.yazlFile.addEmptyDirectory(metadataPath, {
-                            mtime: entry.mtime,
-                            mode: entry.mode
-                        });
-                    } else if (entry.type === "symlink" && !this.followSymlink()) {
-                        await this.addSymlink(this.yazlFile, entry, metadataPath);
-                    } else {
-                        await this.addFileStream(this.yazlFile, entry, metadataPath);
-                    }
+                    await this.addEntry(this.yazlFile, entry, { path: entry.path, metadataPath });
                 }
             } else {
                 // If the folder is empty and the metadataPath has a value,

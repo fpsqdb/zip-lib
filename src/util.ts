@@ -37,8 +37,8 @@ export function rmdir(path: fs.PathLike): Promise<void> {
     return util.promisify(fs.rmdir)(path);
 }
 
-export function symlink(target: fs.PathLike, path: fs.PathLike): Promise<void> {
-    return util.promisify(fs.symlink)(target, path);
+export function symlink(target: fs.PathLike, path: fs.PathLike, type: "dir" | "file" | "junction" | null | undefined): Promise<void> {
+    return util.promisify(fs.symlink)(target, path, type);
 }
 
 export function readlink(path: fs.PathLike): Promise<string> {

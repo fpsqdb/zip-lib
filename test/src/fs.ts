@@ -77,7 +77,8 @@ describe("fs helper", () => {
         const target1 = path.join(__dirname, "../resources");
         it(target1, async () => {
             const files = await exfs.readdirp(target1);
-            const symlinkExist = await exfs.pathExists(path.join(target1, "symlink"));
+            const fileSymlinkExist = await exfs.pathExists(path.join(target1, "symlink"));
+            const folderSymlinkExist = await exfs.pathExists(path.join(target1, "subfolder_symlink"));
             const exceptedFiles: string[] = [];
             exceptedFiles.push(path.join(target1, "«ταБЬℓσ»"));
             exceptedFiles.push(path.join(target1, "name with space/empty folder"));
@@ -86,14 +87,25 @@ describe("fs helper", () => {
             exceptedFiles.push(path.join(target1, "subfolder/test.txt - shortcut.lnk"));
             exceptedFiles.push(path.join(target1, "¹ º » ¼ ½ ¾.txt"));
             exceptedFiles.push(path.join(target1, "src - shortcut.lnk"));
-            if (symlinkExist) {
+            if (fileSymlinkExist && !folderSymlinkExist) {
                 exceptedFiles.push(path.join(target1, "symlink"));
                 if (files.length !== 8) {
                     assert.fail(`files length is ${files.length}, excepted value is 8`);
                 }
-            } else {
+            } else if (!fileSymlinkExist && folderSymlinkExist) {
+                exceptedFiles.push(path.join(target1, "subfolder_symlink"));
+                if (files.length !== 8) {
+                    assert.fail(`files length is ${files.length}, excepted value is 8`);
+                }
+            } else if (!fileSymlinkExist && !folderSymlinkExist) {
                 if (files.length !== 7) {
                     assert.fail(`files length is ${files.length}, excepted value is 7`);
+                }
+            } else if (fileSymlinkExist && folderSymlinkExist) {
+                exceptedFiles.push(path.join(target1, "symlink"));
+                exceptedFiles.push(path.join(target1, "subfolder_symlink"));
+                if (files.length !== 9) {
+                    assert.fail(`files length is ${files.length}, excepted value is 9`);
                 }
             }
             files.forEach(item => {

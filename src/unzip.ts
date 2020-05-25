@@ -4,7 +4,7 @@ import { WriteStream, createWriteStream } from "fs";
 import * as path from "path";
 import { Readable } from "stream";
 import * as util from "./util";
-import { Cancelable } from "./cancelable";
+import { Cancelable, CancellationToken } from "./cancelable";
 
 export interface IExtractOptions {
     /**
@@ -96,7 +96,7 @@ export class Unzip extends Cancelable {
 
     private zipFile: yauzl.ZipFile | null;
 
-    private cancelCallback?: (error: any) => void;
+    private token: CancellationToken | null;
     /**
      * Extract the zip file to the specified location.
      * @param zipFile
@@ -105,28 +105,31 @@ export class Unzip extends Cancelable {
      */
     public async extract(zipFile: string, targetFolder: string): Promise<void> {
         let extractedEntriesCount: number = 0;
-        this.isCanceled = false;
+        const token = new CancellationToken();
+        this.token = token;
         if (this.isOverwrite()) {
             await exfs.rimraf(targetFolder);
         }
-        if (this.isCanceled) {
+        if (token.isCancelled) {
             return Promise.reject(this.canceledError());
         }
         await exfs.ensureFolder(targetFolder);
-        const zfile = await this.openZip(zipFile);
+        const zfile = await this.openZip(zipFile, token);
         this.zipFile = zfile;
         zfile.readEntry();
         return new Promise<void>((c, e) => {
             let anyError: Error | null = null;
             const total: number = zfile.entryCount;
             zfile.once("error", (err) => {
-                e(this.wrapError(err));
+                this.closeZip();
+                e(this.wrapError(err, token.isCancelled));
             });
             zfile.once("close", () => {
+                this.zipFile = null;
                 if (anyError) {
-                    e(this.wrapError(anyError));
+                    e(this.wrapError(anyError, token.isCancelled));
                 } else {
-                    if (this.isCanceled) {
+                    if (token.isCancelled) {
                         e(this.canceledError());
                     }
                     // If the zip content is empty, it will not receive the `zfile.on("entry")` event.
@@ -137,7 +140,7 @@ export class Unzip extends Cancelable {
             });
             // Because openZip is an asynchronous method, openZip may not be completed when calling cancel,
             // so we need to check if it has been canceled after the openZip method returns.
-            if (this.isCanceled) {
+            if (token.isCancelled) {
                 this.closeZip();
                 return;
             }
@@ -164,14 +167,14 @@ export class Unzip extends Cancelable {
                         entryEvent.reset();
                         zfile.readEntry();
                     } else {
-                        await this.handleEntry(zfile, entry, fileName, targetFolder);
+                        await this.handleEntry(zfile, entry, fileName, targetFolder, token);
                     }
                     extractedEntriesCount++;
                     if (extractedEntriesCount === total) {
                         c();
                     }
                 } catch (error) {
-                    anyError = this.wrapError(error);
+                    anyError = this.wrapError(error, token.isCancelled);
                     this.closeZip();
                     e(anyError);
                 }
@@ -184,9 +187,9 @@ export class Unzip extends Cancelable {
      * If the cancel method is called after the extract is complete, nothing will happen.
      */
     public cancel(): void {
-        super.cancel();
-        if (this.cancelCallback) {
-            this.cancelCallback(this.canceledError());
+        if(this.token) {
+            this.token.cancel();
+            this.token = null;
         }
         this.closeZip();
     }
@@ -198,7 +201,7 @@ export class Unzip extends Cancelable {
         }
     }
 
-    private openZip(zipFile: string): Promise<yauzl.ZipFile> {
+    private openZip(zipFile: string, token: CancellationToken): Promise<yauzl.ZipFile> {
         return new Promise<yauzl.ZipFile>((c, e) => {
             yauzl.open(zipFile, {
                 lazyEntries: true,
@@ -206,7 +209,7 @@ export class Unzip extends Cancelable {
                 decodeStrings: false
             }, (err, zfile) => {
                 if (err) {
-                    e(this.wrapError(err));
+                    e(this.wrapError(err, token.isCancelled));
                 } else {
                     c(zfile!);
                 }
@@ -214,7 +217,7 @@ export class Unzip extends Cancelable {
         });
     }
 
-    private async handleEntry(zfile: yauzl.ZipFile, entry: yauzl.Entry, decodeEntryFileName: string, targetPath: string): Promise<void> {
+    private async handleEntry(zfile: yauzl.ZipFile, entry: yauzl.Entry, decodeEntryFileName: string, targetPath: string, token: CancellationToken): Promise<void> {
         if (/\/$/.test(decodeEntryFileName)) {
             // Directory file names end with '/'.
             // Note that entires for directories themselves are optional.
@@ -223,15 +226,15 @@ export class Unzip extends Cancelable {
             zfile.readEntry();
         } else {
             // file entry
-            await this.extractEntry(zfile, entry, decodeEntryFileName, targetPath);
+            await this.extractEntry(zfile, entry, decodeEntryFileName, targetPath, token);
         }
     }
 
-    private openZipFileStream(zfile: yauzl.ZipFile, entry: yauzl.Entry): Promise<Readable> {
+    private openZipFileStream(zfile: yauzl.ZipFile, entry: yauzl.Entry, token: CancellationToken): Promise<Readable> {
         return new Promise<Readable>((c, e) => {
             zfile.openReadStream(entry, (err, readStream) => {
                 if (err) {
-                    e(this.wrapError(err));
+                    e(this.wrapError(err, token.isCancelled));
                 } else {
                     c(readStream!);
                 }
@@ -239,7 +242,7 @@ export class Unzip extends Cancelable {
         });
     }
 
-    private async extractEntry(zfile: yauzl.ZipFile, entry: yauzl.Entry, decodeEntryFileName: string, targetPath: string): Promise<void> {
+    private async extractEntry(zfile: yauzl.ZipFile, entry: yauzl.Entry, decodeEntryFileName: string, targetPath: string, token: CancellationToken): Promise<void> {
         const filePath = path.join(targetPath, decodeEntryFileName);
         const fileDir = path.dirname(filePath);
         await exfs.ensureFolder(fileDir);
@@ -250,27 +253,26 @@ export class Unzip extends Cancelable {
             error.name = "AFWRITE";
             return Promise.reject(error);
         }
-        const readStream = await this.openZipFileStream(zfile, entry);
-        await this.writeEntryToFile(readStream, entry, filePath);
+        const readStream = await this.openZipFileStream(zfile, entry, token);
+        await this.writeEntryToFile(readStream, entry, filePath, token);
         zfile.readEntry();
     }
 
-    private async writeEntryToFile(readStream: Readable, entry: yauzl.Entry, filePath: string): Promise<void> {
+    private async writeEntryToFile(readStream: Readable, entry: yauzl.Entry, filePath: string, token: CancellationToken): Promise<void> {
         let fileStream: WriteStream;
-        this.cancelCallback = (err) => {
-            this.cancelCallback = undefined;
+        token.onCancelled(() => {
             if (fileStream) {
                 readStream.unpipe(fileStream);
-                fileStream.destroy(err);
+                fileStream.destroy(this.canceledError());
             }
-        };
+        });
         return new Promise<void>(async (c, e) => {
             try {
                 const mode = this.modeFromEntry(entry);
                 // see https://unix.stackexchange.com/questions/193465/what-file-mode-is-a-symlink
                 const isSymlink = ((mode & 0o170000) === 0o120000);
                 readStream.once("error", (err) => {
-                    e(this.wrapError(err));
+                    e(this.wrapError(err, token.isCancelled));
                 });
 
                 if (isSymlink && !this.symlinkToFile()) {
@@ -289,12 +291,12 @@ export class Unzip extends Cancelable {
                     fileStream = createWriteStream(filePath, { mode });
                     fileStream.once("close", () => c());
                     fileStream.once("error", (err) => {
-                        e(this.wrapError(err));
+                        e(this.wrapError(err, token.isCancelled));
                     });
                     readStream.pipe(fileStream);
                 }
             } catch (error) {
-                e(this.wrapError(error));
+                e(this.wrapError(error, token.isCancelled));
             }
         });
     }

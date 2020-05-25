@@ -33,7 +33,6 @@ describe("zip", () => {
         } catch (error) {
             if (error.name !== "Canceled") {
                 assert.fail(error);
-                return;
             }
         }
         try {

@@ -83,6 +83,76 @@ class EntryEvent implements IEntryEvent {
     }
 }
 
+interface IEntryContext {
+    /**
+     * Entry name after utf8 decoding.
+     */
+    decodeEntryFileName: string;
+    readonly targetFolder: string;
+    /**
+     * The real path obtained by fs.realpath.
+     */
+    readonly realTargetFolder: string;
+    /**
+     * The name of the symlink file that has been processed.
+     */
+    readonly symlinkFileNames: string[];
+    getFilePath(): string;
+    /**
+     * Whether the specified path is outside the target folder
+     * @param tpath
+     */
+    isOutsideTargetFolder(tpath: string): Promise<boolean>;
+}
+
+class EntryContext implements IEntryContext {
+    constructor(private _targetFolder: string,
+        private _realTargetFolder: string,
+        private symlinkAsFileOnWindows: boolean) {
+        this._symlinkFileNames = [];
+    }
+    private _decodeEntryFileName: string;
+    public get decodeEntryFileName(): string {
+        return this._decodeEntryFileName;
+    }
+    public set decodeEntryFileName(name: string) {
+        this._decodeEntryFileName = name;
+    }
+    public get targetFolder(): string {
+        return this._targetFolder;
+    }
+    public get realTargetFolder(): string {
+        return this._realTargetFolder;
+    }
+    private _symlinkFileNames: string[];
+    public get symlinkFileNames(): string[] {
+        return this._symlinkFileNames;
+    }
+
+    public getFilePath(): string {
+        return path.join(this.targetFolder, this.decodeEntryFileName);
+    }
+
+    public async isOutsideTargetFolder(tpath: string): Promise<boolean> {
+        if (this.symlinkFileNames.length === 0) {
+            return false;
+        }
+        if (process.platform === "win32" &&
+            this.symlinkAsFileOnWindows) {
+            return false;
+        }
+        for (const fileName of this.symlinkFileNames) {
+            if (tpath.includes(fileName)) {
+                const realFilePath = await util.realpath(tpath);
+                if (realFilePath.indexOf(this.realTargetFolder) !== 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+}
+
 /**
  * Extract the zip file.
  */
@@ -114,6 +184,7 @@ export class Unzip extends Cancelable {
             return Promise.reject(this.canceledError());
         }
         await exfs.ensureFolder(targetFolder);
+        const realTargetFolder = await util.realpath(targetFolder);
         const zfile = await this.openZip(zipFile, token);
         this.zipFile = zfile;
         zfile.readEntry();
@@ -144,6 +215,7 @@ export class Unzip extends Cancelable {
                 this.closeZip();
                 return;
             }
+            const entryContext: IEntryContext = new EntryContext(targetFolder, realTargetFolder, this.symlinkToFile());
             const entryEvent: EntryEvent = new EntryEvent(total);
             zfile.on("entry", async (entry: yauzl.Entry) => {
                 // use UTF-8 in all situations
@@ -162,12 +234,13 @@ export class Unzip extends Cancelable {
                 }
                 entryEvent.entryName = fileName;
                 this.onEntryCallback(entryEvent);
+                entryContext.decodeEntryFileName = fileName;
                 try {
                     if (entryEvent.isPrevented) {
                         entryEvent.reset();
                         zfile.readEntry();
                     } else {
-                        await this.handleEntry(zfile, entry, fileName, targetFolder, token);
+                        await this.handleEntry(zfile, entry, entryContext, token);
                     }
                     extractedEntriesCount++;
                     if (extractedEntriesCount === total) {
@@ -187,7 +260,7 @@ export class Unzip extends Cancelable {
      * If the cancel method is called after the extract is complete, nothing will happen.
      */
     public cancel(): void {
-        if(this.token) {
+        if (this.token) {
             this.token.cancel();
             this.token = null;
         }
@@ -217,16 +290,16 @@ export class Unzip extends Cancelable {
         });
     }
 
-    private async handleEntry(zfile: yauzl.ZipFile, entry: yauzl.Entry, decodeEntryFileName: string, targetPath: string, token: CancellationToken): Promise<void> {
-        if (/\/$/.test(decodeEntryFileName)) {
+    private async handleEntry(zfile: yauzl.ZipFile, entry: yauzl.Entry, entryContext: IEntryContext, token: CancellationToken): Promise<void> {
+        if (/\/$/.test(entryContext.decodeEntryFileName)) {
             // Directory file names end with '/'.
             // Note that entires for directories themselves are optional.
             // An entry's fileName implicitly requires its parent directories to exist.
-            await exfs.ensureFolder(path.join(targetPath, decodeEntryFileName));
+            await exfs.ensureFolder(entryContext.getFilePath());
             zfile.readEntry();
         } else {
             // file entry
-            await this.extractEntry(zfile, entry, decodeEntryFileName, targetPath, token);
+            await this.extractEntry(zfile, entry, entryContext, token);
         }
     }
 
@@ -242,23 +315,22 @@ export class Unzip extends Cancelable {
         });
     }
 
-    private async extractEntry(zfile: yauzl.ZipFile, entry: yauzl.Entry, decodeEntryFileName: string, targetPath: string, token: CancellationToken): Promise<void> {
-        const filePath = path.join(targetPath, decodeEntryFileName);
+    private async extractEntry(zfile: yauzl.ZipFile, entry: yauzl.Entry, entryContext: IEntryContext, token: CancellationToken): Promise<void> {
+        const filePath = entryContext.getFilePath();
         const fileDir = path.dirname(filePath);
         await exfs.ensureFolder(fileDir);
-        const realFilePath = await util.realpath(fileDir);
-        const realTargetPath = await util.realpath(targetPath);
-        if (realFilePath.indexOf(realTargetPath) !== 0) {
-            const error = new Error(`Refuse to write file outside "${targetPath}", path: "${realFilePath}"`);
+        const outside = await entryContext.isOutsideTargetFolder(fileDir);
+        if (outside) {
+            const error = new Error(`Refuse to write file outside "${entryContext.targetFolder}", file: "${filePath}"`);
             error.name = "AFWRITE";
             return Promise.reject(error);
         }
         const readStream = await this.openZipFileStream(zfile, entry, token);
-        await this.writeEntryToFile(readStream, entry, filePath, token);
+        await this.writeEntryToFile(readStream, entry, entryContext, token);
         zfile.readEntry();
     }
 
-    private async writeEntryToFile(readStream: Readable, entry: yauzl.Entry, filePath: string, token: CancellationToken): Promise<void> {
+    private async writeEntryToFile(readStream: Readable, entry: yauzl.Entry, entryContext: IEntryContext, token: CancellationToken): Promise<void> {
         let fileStream: WriteStream;
         token.onCancelled(() => {
             if (fileStream) {
@@ -268,6 +340,7 @@ export class Unzip extends Cancelable {
         });
         return new Promise<void>(async (c, e) => {
             try {
+                const filePath = entryContext.getFilePath();
                 const mode = this.modeFromEntry(entry);
                 // see https://unix.stackexchange.com/questions/193465/what-file-mode-is-a-symlink
                 const isSymlink = ((mode & 0o170000) === 0o120000);
@@ -275,6 +348,9 @@ export class Unzip extends Cancelable {
                     e(this.wrapError(err, token.isCancelled));
                 });
 
+                if(isSymlink) {
+                    entryContext.symlinkFileNames.push(entryContext.decodeEntryFileName);
+                }
                 if (isSymlink && !this.symlinkToFile()) {
                     let linkContent: string = "";
                     readStream.on("data", (chunk: string | Buffer) => {
@@ -311,20 +387,22 @@ export class Unzip extends Cancelable {
 
     private async createSymlink(linkContent: string, des: string): Promise<void> {
         let linkType: "dir" | "file" | "junction" | null | undefined = "file";
-        if (/\/$/.test(linkContent)) {
-            linkType = "dir";
-        } else {
-            let targetPath = linkContent;
-            if (!path.isAbsolute(linkContent)) {
-                targetPath = path.join(path.dirname(des), linkContent);
-            }
-            try {
-                const stat = await util.stat(targetPath);
-                if(stat.isDirectory()) {
-                    linkType = "dir";
+        if (process.platform === 'win32') {
+            if (/\/$/.test(linkContent)) {
+                linkType = "dir";
+            } else {
+                let targetPath = linkContent;
+                if (!path.isAbsolute(linkContent)) {
+                    targetPath = path.join(path.dirname(des), linkContent);
                 }
-            } catch (error) {
-                // ignore
+                try {
+                    const stat = await util.stat(targetPath);
+                    if (stat.isDirectory()) {
+                        linkType = "dir";
+                    }
+                } catch (error) {
+                    // ignore
+                }
             }
         }
         await util.symlink(linkContent, des, linkType);

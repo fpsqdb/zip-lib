@@ -5,8 +5,10 @@
     "main": "lib/index.js",
     "scripts": {
         "compile": "rimraf ./lib && tsc -p ./src/tsconfig.json",
+        "release": "rimraf ./lib && tsc -p ./src/tsconfig.release.json",
         "compile-test": "rimraf ./test/out && tsc -p ./test/src/tsconfig.json",
-        "test": "node ./test/src/before.js && mocha ./test/out --timeout 10000"
+        "test": "node ./test/src/before.js && mocha ./test/out --timeout 10000",
+        "pack": "npm run release && npm pack"
     },
     "repository": {
         "type": "git",
@@ -28,12 +30,12 @@
         "yazl": "^2.5.1"
     },
     "devDependencies": {
-        "@types/mocha": "^7.0.2",
-        "@types/node": "^8.10.61",
+        "@types/mocha": "^8.2.0",
+        "@types/node": "^8.10.66",
         "@types/yauzl": "^2.9.1",
         "@types/yazl": "^2.4.2",
-        "mocha": "^7.2.0",
+        "mocha": "^8.2.1",
         "rimraf": "^3.0.2",
-        "typescript": "^3.9.3"
+        "typescript": "^4.1.3"
     }
 }

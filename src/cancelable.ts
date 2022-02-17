@@ -19,7 +19,7 @@ export class CancellationToken {
     /**
      * Subscribe a callback when cancellation is requested. The callback
      * only ever fires `once` as cancellation can only happen once.
-     * @param cb A function will be called whent cancellation is requested.
+     * @param cb A function will be called when cancellation is requested.
      * @returns A function that Unsubscribe the cancellation callback.
      */
     public onCancelled(cb: () => void): () => void {

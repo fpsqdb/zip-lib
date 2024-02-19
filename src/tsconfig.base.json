@@ -7,7 +7,6 @@
         "experimentalDecorators": true,
         "allowSyntheticDefaultImports": true,
         "noImplicitAny": true,
-        "suppressImplicitAnyIndexErrors": true,
         "skipLibCheck": true,
         "noUnusedLocals": true,
         "noImplicitThis": true,

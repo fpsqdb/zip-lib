@@ -8,7 +8,8 @@
         "release": "rimraf ./lib && tsc -p ./src/tsconfig.release.json",
         "compile-test": "rimraf ./test/out && tsc -p ./test/src/tsconfig.json",
         "test": "node ./test/src/before.js && mocha ./test/out --timeout 10000",
-        "pack": "npm run release && npm pack"
+        "pack": "npm run release && npm pack",
+        "publish": "npm run release && npm publish"
     },
     "repository": {
         "type": "git",

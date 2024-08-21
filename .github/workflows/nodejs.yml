@@ -20,7 +20,7 @@ jobs:
         node-version: [14, 20]
         exclude:
             - os: macos-latest
-            - node-version: 14
+              node-version: 14
 
     steps:
     - uses: actions/checkout@v4

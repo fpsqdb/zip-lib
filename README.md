@@ -16,6 +16,7 @@ npm install zip-lib
     - [Zip single folder](#zip-single-folder)
 * [Unzip](#unzip)
 * [Advanced usage](#advance-usage)
+    - [Sets the compression level](#sets-the-compression-level)
     - [Zip multiple files and folders](#zip-multiple-files-and-folders)
     - [Zip with metadata](#zip-with-metadata)
     - [Unzip with entry callback](#unzip-with-entry-callback)
@@ -71,6 +72,18 @@ zl.extract("path/to/target.zip", "path/to/target").then(function () {
 ```
 
 ## Advanced usage
+
+### Sets the compression level
+
+```js
+const zl = require("zip-lib");
+
+zl.archiveFolder("path/to/folder", "path/to/target.zip", { compressionLevel: 9 }).then(function () {
+    console.log("done");
+}, function (err) {
+    console.log(err);
+});
+```
 
 ### Zip multiple files and folders
 
@@ -345,6 +358,7 @@ Returns: `void`
 
 Object
 - `followSymlinks?`: Boolean (optional) - Indicates how to handle when the given path is a symbolic link. The default value is `false`.<br>`true`: add the target of the symbolic link to the zip.<br>`false`: add symbolic link itself to the zip.
+- `compressionLevel?`: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 - Sets the compression level. The default value is `6`.<br>`0`: the file data will be stored.<br>`1-9`: the file data will be deflated.
 
 ### Options: IExtractOptions <a id="iextractoptions"></a>
 

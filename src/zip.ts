@@ -21,6 +21,14 @@ export interface IZipOptions {
      * The default value is `false`.
      */
     followSymlinks?: boolean;
+    /**
+     * Sets the compression level.
+     *
+     * 0: the file data will be stored, otherwise, the file data will be deflated.
+     *
+     * The default value is `6`.
+     */
+    compressionLevel?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 }
 
 /**
@@ -49,13 +57,13 @@ export class Zip extends Cancelable {
      * A valid metadataPath must not start with "/" or /[A-Za-z]:\//, and must not contain "..".
      */
     public addFile(file: string, metadataPath?: string): void {
-        let mpath = metadataPath;
-        if (!mpath) {
-            mpath = path.basename(file);
+        let mPath = metadataPath;
+        if (!mPath) {
+            mPath = path.basename(file);
         }
         this.zipFiles.push({
             path: file,
-            metadataPath: mpath
+            metadataPath: mPath
         });
     }
 
@@ -132,7 +140,7 @@ export class Zip extends Cancelable {
      * If the cancel method is called after the archive is complete, nothing will happen.
      */
     public cancel(): void {
-        if(this.token) {
+        if (this.token) {
             this.token.cancel();
             this.token = null;
         }
@@ -146,7 +154,7 @@ export class Zip extends Cancelable {
                     const realPath = await util.realpath(file.path);
                     await this.walkDir([{ path: realPath, metadataPath: file.metadataPath }], token);
                 } else {
-                    zip.addFile(file.path, file.metadataPath!);
+                    zip.addFile(file.path, file.metadataPath!, this.getYazlOption());
                 }
             } else {
                 await this.addSymlink(zip, entry, file.metadataPath!);
@@ -174,11 +182,13 @@ export class Zip extends Cancelable {
             fileStream.once("close", () => {
                 c();
             });
+
             // If the file attribute is known, add the entry using `addReadStream`,
             // this can reduce the number of calls to the `fs.stat` method.
             zip.addReadStream(fileStream, metadataPath, {
+                ...this.getYazlOption(),
                 mode: file.mode,
-                mtime: file.mtime
+                mtime: file.mtime,
             });
         });
     }
@@ -186,6 +196,7 @@ export class Zip extends Cancelable {
     private async addSymlink(zip: yazl.ZipFile, file: exfs.FileEntry, metadataPath: string): Promise<void> {
         const linkTarget = await util.readlink(file.path);
         zip.addBuffer(Buffer.from(linkTarget), metadataPath, {
+            ...this.getYazlOption(),
             mtime: file.mtime,
             mode: file.mode
         });
@@ -231,5 +242,23 @@ export class Zip extends Cancelable {
             followSymlink = true;
         }
         return followSymlink;
+    }
+
+    /**
+     * Retrieves the yazl options based on the current settings.
+     *
+     * @returns The yazl options with the specified compression level,
+     * or undefined if options or compressionLevel are not properly set.
+     */
+    private getYazlOption(): Partial<yazl.Options> | undefined {
+        if (!this.options) {
+            return undefined;
+        }
+        if (typeof this.options.compressionLevel !== "number") {
+            return undefined;
+        }
+        return {
+            compressionLevel: this.options.compressionLevel,
+        } as any;
     }
 }

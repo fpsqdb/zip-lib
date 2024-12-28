@@ -14,7 +14,7 @@
         "url": "https://github.com/fpsqdb/zip-lib.git"
     },
     "engines": {
-        "node": ">=12"
+        "node": ">=18"
     },
     "keywords": [
         "zip",

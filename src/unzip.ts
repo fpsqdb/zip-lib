@@ -143,7 +143,7 @@ class EntryContext implements IEntryContext {
         }
         for (const fileName of this.symlinkFileNames) {
             if (tpath.includes(fileName)) {
-                const realFilePath = await fs.realpath(tpath);
+                const realFilePath = await exfs.realpath(tpath);
                 if (realFilePath.indexOf(this.realTargetFolder) !== 0) {
                     return true;
                 }
@@ -184,7 +184,7 @@ export class Unzip extends Cancelable {
             return Promise.reject(this.canceledError());
         }
         await exfs.ensureFolder(targetFolder);
-        const realTargetFolder = await fs.realpath(targetFolder);
+        const realTargetFolder = await exfs.realpath(targetFolder);
         const zfile = await this.openZip(zipFile, token);
         this.zipFile = zfile;
         zfile.readEntry();

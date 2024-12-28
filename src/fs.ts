@@ -1,5 +1,7 @@
 import * as path from "path";
 import * as fs from "fs/promises";
+import * as util from "node:util";
+import * as fsSync from "fs";
 
 export interface FileEntry {
     path: string;
@@ -9,6 +11,12 @@ export interface FileEntry {
     mode: number;
 }
 export type FileType = "file" | "dir";
+
+export async function realpath(target: string): Promise<string> {
+    // fs.promises.realpath has a bug with long path on Windows.
+    // https://github.com/nodejs/node/issues/51031
+    return util.promisify(fsSync.realpath)(target);
+}
 
 export async function readdirp(folder: string): Promise<FileEntry[]> {
     const result: FileEntry[] = [];

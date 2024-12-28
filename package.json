@@ -5,11 +5,9 @@
     "main": "lib/index.js",
     "scripts": {
         "compile": "rimraf ./lib && tsc -p ./src/tsconfig.json",
-        "release": "rimraf ./lib && tsc -p ./src/tsconfig.release.json",
+        "release": "rimraf ./lib && tsc -p ./src/tsconfig.release.json && node ./build.mjs",
         "compile-test": "rimraf ./test/out && tsc -p ./test/src/tsconfig.json",
-        "test": "node ./test/src/before.js && mocha ./test/out --timeout 10000",
-        "pack": "npm run release && npm pack",
-        "publish": "npm run release && npm publish"
+        "test": "node ./test/src/before.js && mocha ./test/out --timeout 10000"
     },
     "repository": {
         "type": "git",
@@ -31,15 +29,15 @@
     "license": "MIT",
     "dependencies": {
         "yauzl": "^3.2.0",
-        "yazl": "^3.2.1"
+        "yazl": "^3.3.1"
     },
     "devDependencies": {
-        "@types/mocha": "^10.0.9",
+        "@types/mocha": "^10.0.10",
         "@types/node": "^12.20.55",
         "@types/yauzl": "^2.10.3",
         "@types/yazl": "^2.4.5",
-        "mocha": "^10.8.2",
+        "mocha": "^11.0.1",
         "rimraf": "^6.0.1",
-        "typescript": "^5.6.3"
+        "typescript": "^5.7.2"
     }
 }

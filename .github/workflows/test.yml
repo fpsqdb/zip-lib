@@ -17,10 +17,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
-        node-version: [14, 20]
-        exclude:
-            - os: macos-latest
-              node-version: 14
+        node-version: [18.x, 20.x]
 
     steps:
     - uses: actions/checkout@v4
@@ -29,6 +26,4 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
     - run: npm ci
-    - run: npm run compile
-    - run: npm run compile-test
     - run: npm test

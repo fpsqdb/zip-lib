@@ -1,5 +1,5 @@
 import * as zl from "../../dist";
-import * as util from "../../dist/util";
+import * as fs from "fs/promises";
 import * as path from "path";
 import * as assert from "assert";
 
@@ -22,13 +22,13 @@ describe("unzip", () => {
             await zl.extract(path.join(__dirname, "../unzipResources/resources.zip"), des, {
                 overwrite: true
             });
-            await util.access(path.join(des, "«ταБЬℓσ»"));
-            await util.access(path.join(des, "name with space/empty folder"));
-            await util.access(path.join(des, "subfolder/test text.txt"));
-            await util.access(path.join(des, "subfolder/test.txt"));
-            await util.access(path.join(des, "subfolder/test.txt - shortcut.lnk"));
-            await util.access(path.join(des, "¹ º » ¼ ½ ¾.txt"));
-            await util.access(path.join(des, "src - shortcut.lnk"));
+            await fs.access(path.join(des, "«ταБЬℓσ»"));
+            await fs.access(path.join(des, "name with space/empty folder"));
+            await fs.access(path.join(des, "subfolder/test text.txt"));
+            await fs.access(path.join(des, "subfolder/test.txt"));
+            await fs.access(path.join(des, "subfolder/test.txt - shortcut.lnk"));
+            await fs.access(path.join(des, "¹ º » ¼ ½ ¾.txt"));
+            await fs.access(path.join(des, "src - shortcut.lnk"));
             assert.ok(true, "extract a zip file");
         } catch (error) {
             assert.fail(error);
@@ -60,7 +60,7 @@ describe("unzip", () => {
         try {
             const expectedFileName = "¹ º » ¼ ½ ¾.txt";
             await zl.extract(path.join(__dirname, "../unzipResources/resources_macos.zip"), path.join(__dirname, "../unzips/resources_macos"));
-            await util.access(path.join(__dirname, "../unzips/resources_macos/", expectedFileName));
+            await fs.access(path.join(__dirname, "../unzips/resources_macos/", expectedFileName));
             assert.ok(true, "file name encoding");
         } catch (error) {
             assert.fail(error);

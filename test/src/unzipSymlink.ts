@@ -1,5 +1,5 @@
 import * as zl from "../../dist";
-import * as util from "../../dist/util";
+import * as fs from "fs/promises";
 import * as path from "path";
 import * as assert from "assert";
 
@@ -12,13 +12,13 @@ describe("unzip", () => {
                 symlinkAsFileOnWindows: false
             });
             let passed = false;
-            const stat1 = await util.lstat(path.join(des, "symlink"));
+            const stat1 = await fs.lstat(path.join(des, "symlink"));
             if (stat1.isSymbolicLink()) {
                 passed = true;
             } else {
                 assert.fail(`${path.join(des, "symlink")} is not a symlink`);
             }
-            const stat2 = await util.lstat(path.join(des, "subfolder_symlink"));
+            const stat2 = await fs.lstat(path.join(des, "subfolder_symlink"));
             if (stat2.isSymbolicLink()) {
                 passed = true;
             } else {
@@ -43,7 +43,7 @@ describe("unzip", () => {
             await zl.extract(path.join(__dirname, "../unzipResources/resources_with_symlink.zip"), des, {
                 overwrite: true
             });
-            const stat = await util.lstat(path.join(des, "symlink"));
+            const stat = await fs.lstat(path.join(des, "symlink"));
             if (stat.isSymbolicLink()) {
                 assert.ok(true, "symlink to file on windows");
             } else {

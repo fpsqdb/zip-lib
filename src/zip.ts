@@ -1,8 +1,8 @@
 import * as yazl from "yazl";
-import { WriteStream, createWriteStream, createReadStream } from "fs";
+import { type WriteStream, createWriteStream, createReadStream } from "fs";
+import * as fs from "fs/promises";
 import * as exfs from "./fs";
 import * as path from "path";
-import * as util from "./util";
 import { Cancelable, CancellationToken } from "./cancelable";
 
 interface ZipEntry {
@@ -151,7 +151,7 @@ export class Zip extends Cancelable {
         if (entry.isSymbolicLink) {
             if (this.followSymlink()) {
                 if (entry.type === "dir") {
-                    const realPath = await util.realpath(file.path);
+                    const realPath = await fs.realpath(file.path);
                     await this.walkDir([{ path: realPath, metadataPath: file.metadataPath }], token);
                 } else {
                     zip.addFile(file.path, file.metadataPath!, this.getYazlOption());
@@ -194,7 +194,7 @@ export class Zip extends Cancelable {
     }
 
     private async addSymlink(zip: yazl.ZipFile, file: exfs.FileEntry, metadataPath: string): Promise<void> {
-        const linkTarget = await util.readlink(file.path);
+        const linkTarget = await fs.readlink(file.path);
         zip.addBuffer(Buffer.from(linkTarget), metadataPath, {
             ...this.getYazlOption(),
             mtime: file.mtime,

@@ -1,5 +1,5 @@
 import * as path from "path";
-import * as util from "./util";
+import * as fs from "fs/promises";
 
 export interface FileEntry {
     path: string;
@@ -12,7 +12,7 @@ export type FileType = "file" | "dir";
 
 export async function readdirp(folder: string): Promise<FileEntry[]> {
     const result: FileEntry[] = [];
-    const files = await util.readdir(folder);
+    const files = await fs.readdir(folder);
     for (const item of files) {
         const file = path.join(folder, item);
         const entry = await getFileEntry(file);
@@ -31,7 +31,7 @@ export async function readdirp(folder: string): Promise<FileEntry[]> {
 }
 
 export async function getFileEntry(target: string): Promise<FileEntry> {
-    const stat = await util.lstat(target);
+    const stat = await fs.lstat(target);
     let isSymbolicLink = false;
     let fileType: FileType = "file";
     if (stat.isDirectory()) {
@@ -42,7 +42,7 @@ export async function getFileEntry(target: string): Promise<FileEntry> {
             // If the path is a link, we must instead use fs.stat() to find out if the
             // link is a directory or not because lstat will always return the stat of
             // the link which is always a file.
-            const actualStat = await util.stat(target);
+            const actualStat = await fs.stat(target);
             if (actualStat.isDirectory()) {
                 fileType = "dir";
             }
@@ -78,7 +78,7 @@ export async function ensureFolder(folder: string): Promise<void> {
 
 export async function pathExists(target: string): Promise<boolean> {
     try {
-        await util.access(target);
+        await fs.access(target);
         return true;
     }
     catch (error) {
@@ -92,23 +92,23 @@ export async function rimraf(target: string): Promise<void> {
         return Promise.reject(new Error(`Refuse to recursively delete root, path: "${target}"`));
     }
     try {
-        const stat = await util.lstat(target);
+        const stat = await fs.lstat(target);
         // Folder delete (recursive) - NOT for symbolic links though!
         if (stat.isDirectory() && !stat.isSymbolicLink()) {
             // Children
-            const children = await util.readdir(target);
+            const children = await fs.readdir(target);
             await Promise.all(children.map(child => rimraf(path.join(target, child))));
             // Folder
-            await util.rmdir(target);
+            await fs.rmdir(target);
         }
         // Single file delete
         else {
             // chmod as needed to allow for unlink
             const mode = stat.mode;
             if (!(mode & 128)) { // 128 === 0200
-                await util.chmod(target, mode | 128);
+                await fs.chmod(target, mode | 128);
             }
-            return util.unlink(target);
+            return fs.unlink(target);
         }
     } catch (error) {
         if (error.code !== "ENOENT") {
@@ -119,7 +119,7 @@ export async function rimraf(target: string): Promise<void> {
 
 async function mkdir(folder: string): Promise<void> {
     try {
-        await util.mkdir(folder, 0o777);
+        await fs.mkdir(folder, 0o777);
     } catch (error) {
         // ENOENT: a parent folder does not exist yet or folder name is invalid.
         if (error.code === "ENOENT") {
@@ -128,7 +128,7 @@ async function mkdir(folder: string): Promise<void> {
         // Any other error: check if folder exists and
         // return normally in that case if its a folder
         try {
-            const fileStat = await util.stat(folder);
+            const fileStat = await fs.stat(folder);
             if (!fileStat.isDirectory()) {
                 return Promise.reject(new Error(`"${folder}" exists and is not a directory.`));
             }

@@ -1,9 +1,9 @@
 import * as yauzl from "yauzl";
 import * as exfs from "./fs";
-import { WriteStream, createWriteStream } from "fs";
+import { type WriteStream, createWriteStream } from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import { Readable } from "stream";
-import * as util from "./util";
 import { Cancelable, CancellationToken } from "./cancelable";
 
 export interface IExtractOptions {
@@ -143,7 +143,7 @@ class EntryContext implements IEntryContext {
         }
         for (const fileName of this.symlinkFileNames) {
             if (tpath.includes(fileName)) {
-                const realFilePath = await util.realpath(tpath);
+                const realFilePath = await fs.realpath(tpath);
                 if (realFilePath.indexOf(this.realTargetFolder) !== 0) {
                     return true;
                 }
@@ -184,7 +184,7 @@ export class Unzip extends Cancelable {
             return Promise.reject(this.canceledError());
         }
         await exfs.ensureFolder(targetFolder);
-        const realTargetFolder = await util.realpath(targetFolder);
+        const realTargetFolder = await fs.realpath(targetFolder);
         const zfile = await this.openZip(zipFile, token);
         this.zipFile = zfile;
         zfile.readEntry();
@@ -348,7 +348,7 @@ export class Unzip extends Cancelable {
                     e(this.wrapError(err, token.isCancelled));
                 });
 
-                if(isSymlink) {
+                if (isSymlink) {
                     entryContext.symlinkFileNames.push(entryContext.decodeEntryFileName);
                 }
                 if (isSymlink && !this.symlinkToFile()) {
@@ -396,7 +396,7 @@ export class Unzip extends Cancelable {
                     targetPath = path.join(path.dirname(des), linkContent);
                 }
                 try {
-                    const stat = await util.stat(targetPath);
+                    const stat = await fs.stat(targetPath);
                     if (stat.isDirectory()) {
                         linkType = "dir";
                     }
@@ -405,7 +405,7 @@ export class Unzip extends Cancelable {
                 }
             }
         }
-        await util.symlink(linkContent, des, linkType);
+        await fs.symlink(linkContent, des, linkType);
     }
 
     private isOverwrite(): boolean {

@@ -1,19 +1,19 @@
 import * as zl from "../../dist";
-import * as util from "../../dist/util";
+import * as fs from "fs/promises";
 import * as path from "path";
 import * as assert from "assert";
-import * as fs from "fs";
+import * as fsSync from "fs";
 
 describe("zip", () => {
     it("zip symlink (followSymlinks = false)", async () => {
         const source1 = path.join(__dirname, "../resources/symlink");
         const source2 = path.join(__dirname, "../resources/subfolder_symlink");
         if (process.platform === "win32") {
-            if (!fs.existsSync(source1) || !fs.existsSync(source2)) {
+            if (!fsSync.existsSync(source1) || !fsSync.existsSync(source2)) {
                 console.warn("Please run this test with administator.");
                 return;
             }
-            if (!fs.lstatSync(source1).isSymbolicLink() || !fs.lstatSync(source2).isSymbolicLink()) {
+            if (!fsSync.lstatSync(source1).isSymbolicLink() || !fsSync.lstatSync(source2).isSymbolicLink()) {
                 console.warn("Please run this test with administator.");
                 return;
             }
@@ -31,13 +31,13 @@ describe("zip", () => {
                 symlinkAsFileOnWindows: false
             });
             let passed = false;
-            const stat1 = await util.lstat(path.join(des, "symlink"));
+            const stat1 = await fs.lstat(path.join(des, "symlink"));
             if (stat1.isSymbolicLink()) {
                 passed = true;
             } else {
                 assert.fail(`${path.join(des, "symlink")} is not a symlink`);
             }
-            const stat2 = await util.lstat(path.join(des, "subfolder_symlink"));
+            const stat2 = await fs.lstat(path.join(des, "subfolder_symlink"));
             if (stat2.isSymbolicLink()) {
                 passed = true;
             } else {
@@ -60,11 +60,11 @@ describe("zip", () => {
         const source1 = path.join(__dirname, "../resources/symlink");
         const source2 = path.join(__dirname, "../resources/subfolder_symlink");
         if (process.platform === "win32") {
-            if (!fs.existsSync(source1) || !fs.existsSync(source2)) {
+            if (!fsSync.existsSync(source1) || !fsSync.existsSync(source2)) {
                 console.warn("Please run this test with administator.");
                 return;
             }
-            if (!fs.lstatSync(source1).isSymbolicLink() || !fs.lstatSync(source2).isSymbolicLink()) {
+            if (!fsSync.lstatSync(source1).isSymbolicLink() || !fsSync.lstatSync(source2).isSymbolicLink()) {
                 console.warn("Please run this test with administator.");
                 return;
             }
@@ -83,13 +83,13 @@ describe("zip", () => {
                 overwrite: true
             });
             let passed = false;
-            const stat1 = await util.lstat(path.join(des, "symlink"));
+            const stat1 = await fs.lstat(path.join(des, "symlink"));
             if (stat1.isSymbolicLink()) {
                 assert.fail(`${path.join(des, "symlink")} is a symlink`);
             } else {
                 passed = true;
             }
-            const stat2 = await util.lstat(path.join(des, "subfolder_symlink"));
+            const stat2 = await fs.lstat(path.join(des, "subfolder_symlink"));
             if (stat2.isSymbolicLink()) {
                 assert.fail(`${path.join(des, "subfolder_symlink")} is a symlink`);
             } else {

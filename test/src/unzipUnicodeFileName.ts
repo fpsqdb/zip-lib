@@ -1,5 +1,5 @@
-import * as zl from "../../lib";
-import * as util from "../../lib/util";
+import * as zl from "../../dist";
+import * as util from "../../dist/util";
 import * as path from "path";
 import * as assert from "assert";
 

@@ -1,7 +1,7 @@
-import * as zl from "../../lib";
+import * as zl from "../../dist";
 import * as path from "path";
 import * as assert from "assert";
-import * as exfs from "../../lib/fs";
+import * as exfs from "../../dist/fs";
 
 describe("unzip", () => {
     it("extract a zip file with onEntry callback", async () => {

@@ -1,5 +1,6 @@
 /node_modules
 /lib
+/dist
 /test/out
 /test/zips
 /test/unzips

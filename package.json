@@ -4,10 +4,10 @@
     "description": "zip and unzip library for node",
     "main": "lib/index.js",
     "scripts": {
-        "compile": "rimraf ./lib && tsc -p ./src/tsconfig.json",
+        "compile": "rimraf ./dist && tsc -p ./src/tsconfig.json",
         "release": "rimraf ./lib && tsc -p ./src/tsconfig.release.json && node ./build.mjs",
         "compile-test": "rimraf ./test/out && tsc -p ./test/src/tsconfig.json",
-        "test": "node ./test/src/before.js && mocha ./test/out --timeout 10000"
+        "test": "npm run compile && npm run compile-test && node ./test/src/before.js && mocha ./test/out --timeout 10000"
     },
     "repository": {
         "type": "git",

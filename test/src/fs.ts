@@ -1,4 +1,4 @@
-import * as exfs from "../../lib/fs";
+import * as exfs from "../../dist/fs";
 import * as path from "path";
 import * as assert from "assert";
 

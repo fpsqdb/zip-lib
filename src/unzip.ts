@@ -97,16 +97,13 @@ interface IEntryContext {
      * The name of the symlink file that has been processed.
      */
     readonly symlinkFileNames: string[];
-    /**
-     * The name of the symlink folder that has been processed.
-     */
-    readonly symlinkFolders: { folder: string, realpath: string }[];
     getFilePath(): string;
     /**
      * Whether the specified path is outside the target folder
      * @param tpath
      */
     isOutsideTargetFolder(tpath: string): Promise<boolean>;
+    ensureFolder(folder: string): Promise<void>;
 }
 
 class EntryContext implements IEntryContext {
@@ -115,6 +112,7 @@ class EntryContext implements IEntryContext {
         private symlinkAsFileOnWindows: boolean) {
         this._symlinkFileNames = [];
         this._symlinkFolders = [];
+        this._ensuredFolders = [];
     }
     private _decodeEntryFileName: string;
     public get decodeEntryFileName(): string {
@@ -133,33 +131,48 @@ class EntryContext implements IEntryContext {
     public get symlinkFileNames(): string[] {
         return this._symlinkFileNames;
     }
-    private _symlinkFolders: { folder: string, realpath: string }[];
-    public get symlinkFolders(): { folder: string, realpath: string }[] {
-        return this._symlinkFolders;
+    private _symlinkFolders: { folder: string, realpath: string }[]
+    private _ensuredFolders: string[];
+
+    private addSymlinkFolder(folder: string, realpath: string): void {
+        const find = this._symlinkFolders.find((item) => item.folder === folder);
+        if (!find) {
+            this._symlinkFolders.push({ folder, realpath });
+        }
     }
 
     public getFilePath(): string {
         return path.join(this.targetFolder, this.decodeEntryFileName);
     }
 
+    public async ensureFolder(folder: string): Promise<void> {
+        if (this._ensuredFolders.includes(folder)) {
+            return;
+        }
+        const folderStat = await exfs.ensureFolder(folder);
+        if (folderStat.isSymbolicLink) {
+            this.addSymlinkFolder(folder, folderStat.realpath!);
+        }
+        this._ensuredFolders.push(folder);
+    }
+
     public async isOutsideTargetFolder(tpath: string): Promise<boolean> {
-        if (this.symlinkFileNames.length === 0 &&
-            this.symlinkFolders.length === 0
-        ) {
+        if (this._symlinkFileNames.length === 0 &&
+            this._symlinkFolders.length === 0) {
             return false;
         }
         if (process.platform === "win32" &&
             this.symlinkAsFileOnWindows) {
             return false;
         }
-        for (const { folder, realpath } of this.symlinkFolders) {
+        for (const { folder, realpath } of this._symlinkFolders) {
             if (tpath.includes(folder)) {
                 if (realpath.indexOf(this.realTargetFolder) !== 0) {
                     return true;
                 }
             }
         }
-        for (const fileName of this.symlinkFileNames) {
+        for (const fileName of this._symlinkFileNames) {
             if (tpath.includes(fileName)) {
                 const realFilePath = await exfs.realpath(tpath);
                 if (realFilePath.indexOf(this.realTargetFolder) !== 0) {
@@ -336,13 +349,7 @@ export class Unzip extends Cancelable {
     private async extractEntry(zfile: yauzl.ZipFile, entry: yauzl.Entry, entryContext: IEntryContext, token: CancellationToken): Promise<void> {
         const filePath = entryContext.getFilePath();
         const fileDir = path.dirname(filePath);
-        const folderStat = await exfs.ensureFolder(fileDir);
-        if (folderStat.isSymbolicLink) {
-            entryContext.symlinkFolders.push({
-                folder: fileDir,
-                realpath: folderStat.realpath!,
-            })
-        }
+        await entryContext.ensureFolder(fileDir);
         const outside = await entryContext.isOutsideTargetFolder(fileDir);
         if (outside) {
             const error = new Error(`Refuse to write file outside "${entryContext.targetFolder}", file: "${filePath}"`);

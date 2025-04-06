@@ -177,55 +177,6 @@ async function mkdir(folder: string): Promise<{
             throw error; // rethrow original error
         }
     }
-
-    // // Any other error: check if folder exists and
-    // // return normally in that case if its a folder
-    // try {
-    //     if (folder.includes("dirlink")) {
-    //         console.log("tttttt11111", folder);
-    //     }
-    //     const fileStat = await fs.lstat(folder);
-    //     if (folder.includes("dirlink")) {
-    //         console.log("tttttt22222", fileStat);
-    //     }
-    //     if (fileStat.isSymbolicLink()) {
-    //         console.log("kkkkkkkkk", fileStat);
-    //         const realFilePath = await realpath(folder);
-    //         const realFileStat = await fs.lstat(realFilePath);
-    //         if (!realFileStat.isDirectory()) {
-    //             return Promise.reject(new Error(`"${folder}" exists and is not a directory.`));
-    //         }
-    //         return {
-    //             isDirectory: false,
-    //             isSymbolicLink: true,
-    //             realpath: realFilePath,
-    //         }
-    //     } else {
-    //         if (!fileStat.isDirectory()) {
-    //             return Promise.reject(new Error(`"${folder}" exists and is not a directory.`));
-    //         }
-    //         return {
-    //             isDirectory: true,
-    //             isSymbolicLink: false,
-    //         }
-    //     }
-    // } catch (statError) {
-    //     if (folder.includes("dirlink")) {
-    //         console.log("yyyyy", statError);
-    //     }
-    //     // ignore
-    // }
-    // if (folder.includes("dirlink")) {
-    //     console.log("kkkkkkkkk22222", folder);
-    // }
-    // await fs.mkdir(folder, { recursive: true, mode: 0o777 });
-    // if (folder.includes("dirlink")) {
-    //     console.log("kkkkkkkkk3333333", folder);
-    // }
-    // return {
-    //     isDirectory: true,
-    //     isSymbolicLink: false,
-    // };
 }
 
 // "A"

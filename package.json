@@ -3,9 +3,11 @@
     "version": "1.1.1",
     "description": "zip and unzip library for node",
     "main": "lib/index.js",
+    "types": "./lib/index.d.ts",
     "scripts": {
         "compile": "rimraf ./dist && tsc -p ./src/tsconfig.json",
-        "release": "rimraf ./lib && tsc -p ./src/tsconfig.release.json && node ./build.mjs",
+        "release": "rimraf ./pkg && npm run tsc-cjs && node ./build.mjs",
+        "tsc-cjs": "tsc -p ./src/tsconfig.production.cjs.json",
         "compile-test": "rimraf ./test/out && tsc -p ./test/src/tsconfig.json",
         "test": "npm run compile && npm run compile-test && node ./test/src/before.js && mocha ./test/out --timeout 10000"
     },

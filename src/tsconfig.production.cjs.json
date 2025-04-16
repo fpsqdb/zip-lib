@@ -2,7 +2,7 @@
 	"extends": "./tsconfig.base.json",
     "compilerOptions": {
         "target": "es2017",
-        "outDir": "../lib",
+        "outDir": "../pkg/lib",
         "sourceMap": false,
     }
 }

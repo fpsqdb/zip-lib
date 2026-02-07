@@ -8,6 +8,10 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build:
     if: github.repository == 'fpsqdb/zip-lib'

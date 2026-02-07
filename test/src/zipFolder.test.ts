@@ -1,6 +1,7 @@
-import * as zl from "../../dist";
-import * as path from "path";
-import * as assert from "assert";
+import * as assert from "node:assert";
+import * as path from "node:path";
+import { describe, it } from "vitest";
+import * as zl from "../../src";
 
 describe("zip", () => {
     it("zip folder", async () => {
@@ -13,7 +14,10 @@ describe("zip", () => {
     });
     it("zip a folder that does not exist", async () => {
         try {
-            await zl.archiveFolder(path.join(__dirname, "asdfasdfasdf"), path.join(__dirname, "../zips/dddafsdasdf.zip"));
+            await zl.archiveFolder(
+                path.join(__dirname, "not_exist_folder"),
+                path.join(__dirname, "../zips/not_exist_folder.zip"),
+            );
             assert.fail("zip a folder that does not exist");
         } catch (error) {
             if (error.code === "ENOENT") {

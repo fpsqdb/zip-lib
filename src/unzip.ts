@@ -1,10 +1,10 @@
+import { createWriteStream, type WriteStream } from "node:fs";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import type { Readable } from "node:stream";
 import * as yauzl from "yauzl";
-import * as exfs from "./fs";
-import { type WriteStream, createWriteStream } from "fs";
-import * as fs from "fs/promises";
-import * as path from "path";
-import { Readable } from "stream";
 import { Cancelable, CancellationToken } from "./cancelable";
+import * as exfs from "./fs";
 
 export interface IExtractOptions {
     /**
@@ -54,9 +54,7 @@ class EntryEvent implements IEntryEvent {
     /**
      *
      */
-    constructor(private _entryCount: number) {
-
-    }
+    constructor(private _entryCount: number) {}
     private _entryName: string;
     get entryName(): string {
         return this._entryName;
@@ -107,9 +105,11 @@ interface IEntryContext {
 }
 
 class EntryContext implements IEntryContext {
-    constructor(private _targetFolder: string,
+    constructor(
+        private _targetFolder: string,
         private _realTargetFolder: string,
-        private symlinkAsFileOnWindows: boolean) {
+        private symlinkAsFileOnWindows: boolean,
+    ) {
         this._symlinkFileNames = [];
         this._symlinkFolders = [];
         this._ensuredFolders = [];
@@ -131,7 +131,7 @@ class EntryContext implements IEntryContext {
     public get symlinkFileNames(): string[] {
         return this._symlinkFileNames;
     }
-    private _symlinkFolders: { folder: string, realpath: string }[]
+    private _symlinkFolders: { folder: string; realpath: string }[];
     private _ensuredFolders: string[];
 
     private addSymlinkFolder(folder: string, realpath: string): void {
@@ -141,8 +141,17 @@ class EntryContext implements IEntryContext {
         }
     }
 
+    private isOutside(baseDir: string, targetPath: string) {
+        const absoluteBase = path.resolve(baseDir);
+        const absoluteTarget = path.resolve(targetPath);
+
+        const relative = path.relative(absoluteBase, absoluteTarget);
+
+        return relative.startsWith("..") || path.isAbsolute(relative);
+    }
+
     public getFilePath(): string {
-        return path.join(this.targetFolder, this.decodeEntryFileName);
+        return path.resolve(path.join(this.targetFolder, this.decodeEntryFileName));
     }
 
     public async ensureFolder(folder: string): Promise<void> {
@@ -151,18 +160,16 @@ class EntryContext implements IEntryContext {
         }
         const folderStat = await exfs.ensureFolder(folder);
         if (folderStat.isSymbolicLink) {
-            this.addSymlinkFolder(folder, folderStat.realpath!);
+            this.addSymlinkFolder(folder, folderStat.realpath);
         }
         this._ensuredFolders.push(folder);
     }
 
     public async isOutsideTargetFolder(tpath: string): Promise<boolean> {
-        if (this._symlinkFileNames.length === 0 &&
-            this._symlinkFolders.length === 0) {
+        if (this._symlinkFileNames.length === 0 && this._symlinkFolders.length === 0) {
             return false;
         }
-        if (process.platform === "win32" &&
-            this.symlinkAsFileOnWindows) {
+        if (process.platform === "win32" && this.symlinkAsFileOnWindows) {
             return false;
         }
         for (const { folder, realpath } of this._symlinkFolders) {
@@ -175,7 +182,7 @@ class EntryContext implements IEntryContext {
         for (const fileName of this._symlinkFileNames) {
             if (tpath.includes(fileName)) {
                 const realFilePath = await exfs.realpath(tpath);
-                if (realFilePath.indexOf(this.realTargetFolder) !== 0) {
+                if (this.isOutside(this.realTargetFolder, realFilePath)) {
                     return true;
                 }
             }
@@ -251,7 +258,7 @@ export class Unzip extends Cancelable {
             zfile.on("entry", async (entry: yauzl.Entry) => {
                 // use UTF-8 in all situations
                 // see https://github.com/thejoshwolfe/yauzl/issues/84
-                const rawName = (entry.fileName as any as Buffer).toString("utf8");
+                const rawName = (entry.fileName as unknown as Buffer).toString("utf8");
                 // allow backslash
                 const fileName = rawName.replace(/\\/g, "/");
                 // Because `decodeStrings` is `false`, we need to manually verify the entryname
@@ -307,21 +314,30 @@ export class Unzip extends Cancelable {
 
     private openZip(zipFile: string, token: CancellationToken): Promise<yauzl.ZipFile> {
         return new Promise<yauzl.ZipFile>((c, e) => {
-            yauzl.open(zipFile, {
-                lazyEntries: true,
-                // see https://github.com/thejoshwolfe/yauzl/issues/84
-                decodeStrings: false
-            }, (err, zfile) => {
-                if (err) {
-                    e(this.wrapError(err, token.isCancelled));
-                } else {
-                    c(zfile!);
-                }
-            });
+            yauzl.open(
+                zipFile,
+                {
+                    lazyEntries: true,
+                    // see https://github.com/thejoshwolfe/yauzl/issues/84
+                    decodeStrings: false,
+                },
+                (err, zfile) => {
+                    if (err) {
+                        e(this.wrapError(err, token.isCancelled));
+                    } else {
+                        c(zfile);
+                    }
+                },
+            );
         });
     }
 
-    private async handleEntry(zfile: yauzl.ZipFile, entry: yauzl.Entry, entryContext: IEntryContext, token: CancellationToken): Promise<void> {
+    private async handleEntry(
+        zfile: yauzl.ZipFile,
+        entry: yauzl.Entry,
+        entryContext: IEntryContext,
+        token: CancellationToken,
+    ): Promise<void> {
         if (/\/$/.test(entryContext.decodeEntryFileName)) {
             // Directory file names end with '/'.
             // Note that entires for directories themselves are optional.
@@ -340,13 +356,18 @@ export class Unzip extends Cancelable {
                 if (err) {
                     e(this.wrapError(err, token.isCancelled));
                 } else {
-                    c(readStream!);
+                    c(readStream);
                 }
             });
         });
     }
 
-    private async extractEntry(zfile: yauzl.ZipFile, entry: yauzl.Entry, entryContext: IEntryContext, token: CancellationToken): Promise<void> {
+    private async extractEntry(
+        zfile: yauzl.ZipFile,
+        entry: yauzl.Entry,
+        entryContext: IEntryContext,
+        token: CancellationToken,
+    ): Promise<void> {
         const filePath = entryContext.getFilePath();
         const fileDir = path.dirname(filePath);
         await entryContext.ensureFolder(fileDir);
@@ -361,7 +382,12 @@ export class Unzip extends Cancelable {
         zfile.readEntry();
     }
 
-    private async writeEntryToFile(readStream: Readable, entry: yauzl.Entry, entryContext: IEntryContext, token: CancellationToken): Promise<void> {
+    private async writeEntryToFile(
+        readStream: Readable,
+        entry: yauzl.Entry,
+        entryContext: IEntryContext,
+        token: CancellationToken,
+    ): Promise<void> {
         let fileStream: WriteStream;
         token.onCancelled(() => {
             if (fileStream) {
@@ -369,18 +395,20 @@ export class Unzip extends Cancelable {
                 fileStream.destroy(this.canceledError());
             }
         });
-        return new Promise<void>(async (c, e) => {
+        return new Promise<void>((c, e) => {
             try {
                 const filePath = entryContext.getFilePath();
-                const mode = this.modeFromEntry(entry);
-                // see https://unix.stackexchange.com/questions/193465/what-file-mode-is-a-symlink
-                const isSymlink = ((mode & 0o170000) === 0o120000);
                 readStream.once("error", (err) => {
                     e(this.wrapError(err, token.isCancelled));
                 });
 
+                const mode = this.modeFromEntry(entry);
+                // see https://unix.stackexchange.com/questions/193465/what-file-mode-is-a-symlink
+                const isSymlink = (mode & 0o170000) === 0o120000;
                 if (isSymlink) {
-                    entryContext.symlinkFileNames.push(entryContext.decodeEntryFileName);
+                    entryContext.symlinkFileNames.push(
+                        path.resolve(path.join(entryContext.targetFolder, entryContext.decodeEntryFileName)),
+                    );
                 }
                 if (isSymlink && !this.symlinkToFile()) {
                     let linkContent: string = "";
@@ -412,13 +440,13 @@ export class Unzip extends Cancelable {
         const attr = entry.externalFileAttributes >> 16 || 33188;
 
         return [448 /* S_IRWXU */, 56 /* S_IRWXG */, 7 /* S_IRWXO */]
-            .map(mask => attr & mask)
+            .map((mask) => attr & mask)
             .reduce((a, b) => a + b, attr & 61440 /* S_IFMT */);
     }
 
     private async createSymlink(linkContent: string, des: string): Promise<void> {
         let linkType: "dir" | "file" | "junction" | null | undefined = "file";
-        if (process.platform === 'win32') {
+        if (process.platform === "win32") {
             if (/\/$/.test(linkContent)) {
                 linkType = "dir";
             } else {
@@ -431,7 +459,7 @@ export class Unzip extends Cancelable {
                     if (stat.isDirectory()) {
                         linkType = "dir";
                     }
-                } catch (error) {
+                } catch (_error) {
                     // ignore
                 }
             }
@@ -440,15 +468,14 @@ export class Unzip extends Cancelable {
     }
 
     private isOverwrite(): boolean {
-        if (this.options &&
-            this.options.overwrite) {
+        if (this.options?.overwrite) {
             return true;
         }
         return false;
     }
 
     private onEntryCallback(event: IEntryEvent): void {
-        if (this.options && this.options.onEntry) {
+        if (this.options?.onEntry) {
             this.options.onEntry(event);
         }
     }
@@ -456,8 +483,7 @@ export class Unzip extends Cancelable {
     private symlinkToFile(): boolean {
         let symlinkToFile: boolean = false;
         if (process.platform === "win32") {
-            if (this.options &&
-                this.options.symlinkAsFileOnWindows === false) {
+            if (this.options && this.options.symlinkAsFileOnWindows === false) {
                 symlinkToFile = false;
             } else {
                 symlinkToFile = true;

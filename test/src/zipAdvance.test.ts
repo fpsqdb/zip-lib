@@ -1,7 +1,8 @@
-import * as zl from "../../dist";
-import * as path from "path";
-import * as assert from "assert";
-import * as fs from "fs";
+import * as assert from "node:assert";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { describe, it } from "vitest";
+import * as zl from "../../src";
 
 describe("zip", () => {
     it("advance zip", async () => {
@@ -15,7 +16,7 @@ describe("zip", () => {
             await zip.archive(target);
             const unzipTarget = path.join(__dirname, "../unzips/resources_advance");
             await zl.extract(target, unzipTarget, {
-                overwrite: true
+                overwrite: true,
             });
             fs.accessSync(path.join(unzipTarget, "test.lnk"));
             fs.accessSync(path.join(unzipTarget, "ddddd.txt"));

@@ -1,7 +1,8 @@
-import * as zl from "../../dist";
-import * as fs from "fs/promises";
-import * as path from "path";
-import * as assert from "assert";
+import * as assert from "node:assert";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { describe, it } from "vitest";
+import * as zl from "../../src";
 
 describe("unzip", () => {
     it("extract a zip file contains symlink", async () => {
@@ -9,7 +10,7 @@ describe("unzip", () => {
             const des = path.join(__dirname, "../unzips/resources_with_symlink");
             await zl.extract(path.join(__dirname, "../unzipResources/resources_with_symlink.zip"), des, {
                 overwrite: true,
-                symlinkAsFileOnWindows: false
+                symlinkAsFileOnWindows: false,
             });
             let passed = false;
             const stat1 = await fs.lstat(path.join(des, "symlink"));
@@ -28,10 +29,9 @@ describe("unzip", () => {
                 assert.ok(true, "extract a zip file contains symlink");
             }
         } catch (error) {
-            if (process.platform === "win32" &&
-                error.code === "EPERM") {
-                console.warn("Please run this test with administator.");
-                assert.ok(true, "Please run this test with administator.");
+            if (process.platform === "win32" && error.code === "EPERM") {
+                console.warn("Please run this test with administrator.");
+                assert.ok(true, "Please run this test with administrator.");
             } else {
                 assert.fail(error);
             }
@@ -41,7 +41,7 @@ describe("unzip", () => {
         try {
             const des = path.join(__dirname, "../unzips/resources_with_symlinkAsFile");
             await zl.extract(path.join(__dirname, "../unzipResources/resources_with_symlink.zip"), des, {
-                overwrite: true
+                overwrite: true,
             });
             const stat = await fs.lstat(path.join(des, "symlink"));
             if (stat.isSymbolicLink()) {
@@ -54,9 +54,8 @@ describe("unzip", () => {
                 }
             }
         } catch (error) {
-            if (process.platform === "win32" &&
-                error.code === "EPERM") {
-                assert.ok(true, "Please run this test with administator.");
+            if (process.platform === "win32" && error.code === "EPERM") {
+                assert.ok(true, "Please run this test with administrator.");
             } else {
                 assert.fail(error);
             }

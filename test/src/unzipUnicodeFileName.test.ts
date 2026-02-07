@@ -1,7 +1,8 @@
-import * as zl from "../../dist";
-import * as fs from "fs/promises";
-import * as path from "path";
-import * as assert from "assert";
+import * as assert from "node:assert";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { describe, it } from "vitest";
+import * as zl from "../../src";
 
 describe("unzip", () => {
     it("Correct decode unicode file name", async () => {

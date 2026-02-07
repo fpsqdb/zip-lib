@@ -1,6 +1,7 @@
-import * as zl from "../../dist";
-import * as path from "path";
-import * as assert from "assert";
+import * as assert from "node:assert";
+import * as path from "node:path";
+import { describe, it } from "vitest";
+import * as zl from "../../src";
 
 describe("zip", () => {
     it("cancel zip", async () => {
@@ -42,7 +43,7 @@ describe("zip", () => {
         } catch (error) {
             assert.fail(error);
         }
-    }).timeout(60000);
+    });
     it("cancel after zip completed", async () => {
         try {
             const zip = new zl.Zip();

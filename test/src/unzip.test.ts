@@ -1,12 +1,13 @@
-import * as zl from "../../dist";
-import * as fs from "fs/promises";
-import * as path from "path";
-import * as assert from "assert";
+import * as assert from "node:assert";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { describe, it } from "vitest";
+import * as zl from "../../src";
 
 describe("unzip", () => {
     it("extract a zip file that does not exist", async () => {
         try {
-            await zl.extract(path.join(__dirname, "../asdfasdfasdf.zip"), path.join(__dirname, "../unzips/asdfasdfasdf"));
+            await zl.extract(path.join(__dirname, "../not_exist.zip"), path.join(__dirname, "../unzips/not_exist"));
             assert.fail("extract a zip file that does not exist");
         } catch (error) {
             if (error.code === "ENOENT") {
@@ -20,7 +21,7 @@ describe("unzip", () => {
         try {
             const des = path.join(__dirname, "../unzips/resources");
             await zl.extract(path.join(__dirname, "../unzipResources/resources.zip"), des, {
-                overwrite: true
+                overwrite: true,
             });
             await fs.access(path.join(des, "«ταБЬℓσ»"));
             await fs.access(path.join(des, "name with space/empty folder"));
@@ -38,10 +39,10 @@ describe("unzip", () => {
         try {
             const des = path.join(__dirname, "../unzips/invalid");
             await zl.extract(path.join(__dirname, "../resources/¹ º » ¼ ½ ¾.txt"), des, {
-                overwrite: true
+                overwrite: true,
             });
             assert.fail("Extract a file that is not in zip format");
-        } catch (error) {
+        } catch (_error) {
             assert.ok(true, "Extract a file that is not in zip format");
         }
     });
@@ -49,17 +50,20 @@ describe("unzip", () => {
         try {
             const des = path.join(__dirname, "../unzips/zip_corrupted");
             await zl.extract(path.join(__dirname, "../unzipResources/zip_corrupted.zip"), des, {
-                overwrite: true
+                overwrite: true,
             });
             assert.fail("extract an corrupted zip file");
-        } catch (error) {
+        } catch (_error) {
             assert.ok(true, "extract an corrupted zip file");
         }
     });
     it("file name encoding", async () => {
         try {
             const expectedFileName = "¹ º » ¼ ½ ¾.txt";
-            await zl.extract(path.join(__dirname, "../unzipResources/resources_macos.zip"), path.join(__dirname, "../unzips/resources_macos"));
+            await zl.extract(
+                path.join(__dirname, "../unzipResources/resources_macos.zip"),
+                path.join(__dirname, "../unzips/resources_macos"),
+            );
             await fs.access(path.join(__dirname, "../unzips/resources_macos/", expectedFileName));
             assert.ok(true, "file name encoding");
         } catch (error) {

@@ -1,18 +1,23 @@
-import * as zl from "../../dist";
-import * as path from "path";
-import * as assert from "assert";
-import * as exfs from "../../dist/fs";
+import * as assert from "node:assert";
+import * as path from "node:path";
+import { describe, it } from "vitest";
+import * as zl from "../../src";
+import * as exfs from "../../src/fs";
 
 describe("unzip", () => {
     it("extract a zip file with onEntry callback", async () => {
         try {
             const total: number = 9;
             let actual: number = 0;
-            await zl.extract(path.join(__dirname, "../unzipResources/resources.zip"), path.join(__dirname, "../unzips/resources_sourcepath"), {
-                onEntry: (event: zl.IEntryEvent) => {
-                    actual = event.entryCount;
-                }
-            });
+            await zl.extract(
+                path.join(__dirname, "../unzipResources/resources.zip"),
+                path.join(__dirname, "../unzips/resources_source_path"),
+                {
+                    onEntry: (event: zl.IEntryEvent) => {
+                        actual = event.entryCount;
+                    },
+                },
+            );
             if (actual !== total) {
                 assert.fail(`entryCount, expected ${total} but ${actual}`);
             } else {
@@ -32,7 +37,7 @@ describe("unzip", () => {
                         // entry name starts with __MACOSX/
                         event.preventDefault();
                     }
-                }
+                },
             });
             const exist = await exfs.pathExists(path.join(target, "__MACOSX"));
             if (exist) {

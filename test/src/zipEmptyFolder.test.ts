@@ -1,16 +1,17 @@
-import * as zl from "../../dist";
-import * as path from "path";
-import * as assert from "assert";
-import * as fs from "fs";
+import * as assert from "node:assert";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { describe, it } from "vitest";
+import * as zl from "../../src";
 
 describe("zip", () => {
-    it("zip a folder only contains subfoders and without any files.", async () => {
+    it("zip a folder only contains subfolders and without any files.", async () => {
         try {
             const target = path.join(__dirname, "../zips/name with space.zip");
             await zl.archiveFolder(path.join(__dirname, "../resources/name with space"), target);
             const unzipTarget = path.join(__dirname, "../unzips/name with space");
             await zl.extract(target, unzipTarget, {
-                overwrite: true
+                overwrite: true,
             });
             fs.accessSync(path.join(unzipTarget, "/empty folder"));
             assert.ok(true, "zip a single empty folder");
@@ -24,7 +25,7 @@ describe("zip", () => {
             await zl.archiveFolder(path.join(__dirname, "../resources/name with space/empty folder"), target);
             const unzipTarget = path.join(__dirname, "../unzips/empty");
             await zl.extract(target, unzipTarget, {
-                overwrite: true
+                overwrite: true,
             });
             const files = fs.readdirSync(unzipTarget);
             if (files.length > 0) {
@@ -44,7 +45,7 @@ describe("zip", () => {
             await zip.archive(target);
             const unzipTarget = path.join(__dirname, "../unzips/empty_with_metadata");
             await zl.extract(target, unzipTarget, {
-                overwrite: true
+                overwrite: true,
             });
             fs.accessSync(path.join(unzipTarget, "/root"));
             assert.ok(true, "zip a single empty folder");

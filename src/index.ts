@@ -1,7 +1,8 @@
-import { Zip, IZipOptions } from "./zip";
-import { Unzip, IExtractOptions } from "./unzip";
-export * from "./zip";
+import { type IExtractOptions, Unzip } from "./unzip";
+import { type IZipOptions, Zip } from "./zip";
+
 export * from "./unzip";
+export * from "./zip";
 
 /**
  * Compress a single file to zip.

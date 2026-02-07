@@ -1,6 +1,7 @@
-import * as exfs from "../../dist/fs";
-import * as path from "path";
-import * as assert from "assert";
+import * as assert from "node:assert";
+import * as path from "node:path";
+import { describe, it } from "vitest";
+import * as exfs from "../../src/fs";
 
 describe("fs helper", () => {
     describe("isRootPath", () => {
@@ -108,7 +109,7 @@ describe("fs helper", () => {
                     assert.fail(`files length is ${files.length}, excepted value is 9`);
                 }
             }
-            files.forEach(item => {
+            files.forEach((item) => {
                 if (exceptedFiles.indexOf(item.path) < 0) {
                     assert.fail(`${item.path} is not an excepted value`);
                 }

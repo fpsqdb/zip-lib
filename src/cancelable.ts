@@ -39,7 +39,9 @@ export class CancellationToken {
             return;
         }
         this._isCancelled = true;
-        this._callbacks.forEach((cb) => cb());
+        this._callbacks.forEach((cb) => {
+            cb();
+        });
         this._callbacks.clear();
     }
 }

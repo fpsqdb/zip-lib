@@ -1,8 +1,9 @@
-import * as zl from "../../dist";
-import * as fs from "fs/promises";
-import * as path from "path";
-import * as assert from "assert";
-import * as fsSync from "fs";
+import * as assert from "node:assert";
+import * as fsSync from "node:fs";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { describe, it } from "vitest";
+import * as zl from "../../src";
 
 describe("zip", () => {
     it("zip symlink (followSymlinks = false)", async () => {
@@ -10,11 +11,11 @@ describe("zip", () => {
         const source2 = path.join(__dirname, "../resources/subfolder_symlink");
         if (process.platform === "win32") {
             if (!fsSync.existsSync(source1) || !fsSync.existsSync(source2)) {
-                console.warn("Please run this test with administator.");
+                console.warn("Please run this test with administrator.");
                 return;
             }
             if (!fsSync.lstatSync(source1).isSymbolicLink() || !fsSync.lstatSync(source2).isSymbolicLink()) {
-                console.warn("Please run this test with administator.");
+                console.warn("Please run this test with administrator.");
                 return;
             }
         }
@@ -28,7 +29,7 @@ describe("zip", () => {
             const des = path.join(__dirname, "../unzips/resources_allow_symlink");
             await zl.extract(zipFile, des, {
                 overwrite: true,
-                symlinkAsFileOnWindows: false
+                symlinkAsFileOnWindows: false,
             });
             let passed = false;
             const stat1 = await fs.lstat(path.join(des, "symlink"));
@@ -47,10 +48,9 @@ describe("zip", () => {
                 assert.ok(true, "zip symlink (followSymlinks = false)");
             }
         } catch (error) {
-            if (process.platform === "win32" &&
-                error.code === "EPERM") {
-                console.warn("Please run this test with administator.");
-                assert.ok(true, "Please run this test with administator.");
+            if (process.platform === "win32" && error.code === "EPERM") {
+                console.warn("Please run this test with administrator.");
+                assert.ok(true, "Please run this test with administrator.");
             } else {
                 assert.fail(error);
             }
@@ -61,18 +61,18 @@ describe("zip", () => {
         const source2 = path.join(__dirname, "../resources/subfolder_symlink");
         if (process.platform === "win32") {
             if (!fsSync.existsSync(source1) || !fsSync.existsSync(source2)) {
-                console.warn("Please run this test with administator.");
+                console.warn("Please run this test with administrator.");
                 return;
             }
             if (!fsSync.lstatSync(source1).isSymbolicLink() || !fsSync.lstatSync(source2).isSymbolicLink()) {
-                console.warn("Please run this test with administator.");
+                console.warn("Please run this test with administrator.");
                 return;
             }
         }
         const zipFile = path.join(__dirname, "../zips/resources_disallow_symlink.zip");
         try {
             await zl.archiveFolder(path.join(__dirname, "../resources"), zipFile, {
-                followSymlinks: true
+                followSymlinks: true,
             });
         } catch (error) {
             assert.fail(error);
@@ -80,7 +80,7 @@ describe("zip", () => {
         try {
             const des = path.join(__dirname, "../unzips/resources_disallow_symlink");
             await zl.extract(zipFile, des, {
-                overwrite: true
+                overwrite: true,
             });
             let passed = false;
             const stat1 = await fs.lstat(path.join(des, "symlink"));

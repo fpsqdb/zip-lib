@@ -1,7 +1,7 @@
-import * as path from "path";
-import * as fs from "fs/promises";
+import * as fsSync from "node:fs";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import * as util from "node:util";
-import * as fsSync from "fs";
 
 export interface FileEntry {
     path: string;
@@ -10,6 +10,16 @@ export interface FileEntry {
     mtime: Date;
     mode: number;
 }
+export type FolderStat =
+    | {
+          isDirectory: true;
+          isSymbolicLink: false;
+      }
+    | {
+          isDirectory: false;
+          isSymbolicLink: true;
+          realpath: string;
+      };
 export type FileType = "file" | "dir";
 
 export async function realpath(target: string): Promise<string> {
@@ -61,20 +71,16 @@ export async function getFileEntry(target: string): Promise<FileEntry> {
         isSymbolicLink,
         type: fileType,
         mtime: stat.mtime,
-        mode: stat.mode
+        mode: stat.mode,
     };
 }
 
-export async function ensureFolder(folder: string): Promise<{
-    isDirectory: boolean,
-    isSymbolicLink: boolean,
-    realpath?: string,
-}> {
+export async function ensureFolder(folder: string): Promise<FolderStat> {
     // stop at root
     if (folder === path.dirname(folder)) {
         return Promise.resolve({
             isDirectory: true,
-            isSymbolicLink: false
+            isSymbolicLink: false,
         });
     }
     try {
@@ -96,8 +102,7 @@ export async function pathExists(target: string): Promise<boolean> {
     try {
         await fs.access(target);
         return true;
-    }
-    catch (error) {
+    } catch (_error) {
         return false;
     }
 }
@@ -113,7 +118,7 @@ export async function rimraf(target: string): Promise<void> {
         if (stat.isDirectory() && !stat.isSymbolicLink()) {
             // Children
             const children = await fs.readdir(target);
-            await Promise.all(children.map(child => rimraf(path.join(target, child))));
+            await Promise.all(children.map((child) => rimraf(path.join(target, child))));
             // Folder
             await fs.rmdir(target);
         }
@@ -121,7 +126,8 @@ export async function rimraf(target: string): Promise<void> {
         else {
             // chmod as needed to allow for unlink
             const mode = stat.mode;
-            if (!(mode & 128)) { // 128 === 0200
+            if (!(mode & 128)) {
+                // 128 === 0200
                 await fs.chmod(target, mode | 128);
             }
             return fs.unlink(target);
@@ -133,11 +139,7 @@ export async function rimraf(target: string): Promise<void> {
     }
 }
 
-async function mkdir(folder: string): Promise<{
-    isDirectory: boolean,
-    isSymbolicLink: boolean,
-    realpath?: string,
-}> {
+async function mkdir(folder: string): Promise<FolderStat> {
     try {
         await fs.mkdir(folder, 0o777);
         return {
@@ -163,7 +165,7 @@ async function mkdir(folder: string): Promise<{
                     isDirectory: false,
                     isSymbolicLink: true,
                     realpath: realFilePath,
-                }
+                };
             } else {
                 if (!fileStat.isDirectory()) {
                     return Promise.reject(new Error(`"${folder}" exists and is not a directory.`));
@@ -171,9 +173,9 @@ async function mkdir(folder: string): Promise<{
                 return {
                     isDirectory: true,
                     isSymbolicLink: false,
-                }
+                };
             }
-        } catch (statError) {
+        } catch (_statError) {
             throw error; // rethrow original error
         }
     }
@@ -192,9 +194,9 @@ const charColon: number = 58;
 // "\"
 const charWinSep: number = 92;
 // "/"
-const cahrUnixSep: number = 47;
+const charUnixSep: number = 47;
 function isDriveLetter(char0: number): boolean {
-    return char0 >= charA && char0 <= charZ || char0 >= chara && char0 <= charz;
+    return (char0 >= charA && char0 <= charZ) || (char0 >= chara && char0 <= charz);
 }
 const winSep: string = "\\";
 const unixSep: string = "/";
@@ -202,17 +204,18 @@ export function isRootPath(target: string): boolean {
     if (!target) {
         return false;
     }
-    if (target === winSep ||
-        target === unixSep) {
+    if (target === winSep || target === unixSep) {
         return true;
     }
     if (process.platform === "win32") {
         if (target.length > 3) {
             return false;
         }
-        return isDriveLetter(target.charCodeAt(0))
-            && target.charCodeAt(1) === charColon
-            && (target.length === 2 || target.charCodeAt(2) === charWinSep || target.charCodeAt(2) === cahrUnixSep);
+        return (
+            isDriveLetter(target.charCodeAt(0)) &&
+            target.charCodeAt(1) === charColon &&
+            (target.length === 2 || target.charCodeAt(2) === charWinSep || target.charCodeAt(2) === charUnixSep)
+        );
     }
     return false;
 }

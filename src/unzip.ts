@@ -174,7 +174,7 @@ class EntryContext implements IEntryContext {
         }
         for (const { folder, realpath } of this._symlinkFolders) {
             if (tpath.includes(folder)) {
-                if (realpath.indexOf(this.realTargetFolder) !== 0) {
+                if (this.isOutside(this.realTargetFolder, realpath)) {
                     return true;
                 }
             }

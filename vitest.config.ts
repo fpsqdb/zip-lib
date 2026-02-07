@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
     test: {
         globals: true,
-        setupFiles: ["./test/src/setup.ts"],
+        globalSetup: ["./test/src/setup.ts"],
         include: ["./test/src/*.test.ts"],
         coverage: {
             reportsDirectory: ".coverage/",

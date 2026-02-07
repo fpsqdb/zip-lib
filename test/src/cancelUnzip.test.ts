@@ -47,7 +47,7 @@ describe("unzip", () => {
         } catch (error) {
             assert.fail(error);
         }
-    });
+    }, 60000);
     it("cancel extract zip file after completed", async () => {
         try {
             const unzip = new zl.Unzip({

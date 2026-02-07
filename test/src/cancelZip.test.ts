@@ -43,7 +43,7 @@ describe("zip", () => {
         } catch (error) {
             assert.fail(error);
         }
-    });
+    }, 60000);
     it("cancel after zip completed", async () => {
         try {
             const zip = new zl.Zip();

@@ -1,6 +1,6 @@
 {
     "name": "zip-lib",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "zip and unzip library for node",
     "main": "lib/index.js",
     "types": "./lib/index.d.ts",

@@ -22,6 +22,15 @@ export type FolderStat =
       };
 export type FileType = "file" | "dir";
 
+export function isOutside(baseDir: string, targetPath: string): boolean {
+    const absoluteBase = path.resolve(baseDir);
+    const absoluteTarget = path.resolve(targetPath);
+
+    const relative = path.relative(absoluteBase, absoluteTarget);
+
+    return relative.startsWith("..") || path.isAbsolute(relative);
+}
+
 export async function realpath(target: string): Promise<string> {
     // fs.promises.realpath has a bug with long path on Windows.
     // https://github.com/nodejs/node/issues/51031

@@ -26,6 +26,17 @@ export interface IExtractOptions {
      */
     symlinkAsFileOnWindows?: boolean;
     /**
+     * Controls the creation phase of symlinks.
+     *
+     * `true`: Refuses to create any symlink whose target is outside the extraction root.
+     *
+     * `false`: Allows creating external symlinks. **Note:** Subsequent write operations to these
+     * links will still be intercepted by the separate AFWRITE security layer.
+     *
+     * The default value is `false`.
+     */
+    safeSymlinksOnly?: boolean;
+    /**
      * Called before an item is extracted.
      * @param event
      */
@@ -97,6 +108,12 @@ interface IEntryContext {
     readonly symlinkFileNames: string[];
     getFilePath(): string;
     /**
+     * Whether the symlink target path is outside the target folder
+     * @param linkTarget
+     * @param linkFilePath
+     */
+    isSymlinkTargetOutsideTargetFolder(linkTarget: string, linkFilePath: string): boolean;
+    /**
      * Whether the specified path is outside the target folder
      * @param tpath
      */
@@ -141,15 +158,6 @@ class EntryContext implements IEntryContext {
         }
     }
 
-    private isOutside(baseDir: string, targetPath: string) {
-        const absoluteBase = path.resolve(baseDir);
-        const absoluteTarget = path.resolve(targetPath);
-
-        const relative = path.relative(absoluteBase, absoluteTarget);
-
-        return relative.startsWith("..") || path.isAbsolute(relative);
-    }
-
     public getFilePath(): string {
         return path.resolve(path.join(this.targetFolder, this.decodeEntryFileName));
     }
@@ -165,6 +173,11 @@ class EntryContext implements IEntryContext {
         this._ensuredFolders.push(folder);
     }
 
+    public isSymlinkTargetOutsideTargetFolder(linkTarget: string, linkFilePath: string): boolean {
+        const fileDir = path.dirname(linkFilePath);
+        return exfs.isOutside(this.realTargetFolder, path.resolve(fileDir, linkTarget));
+    }
+
     public async isOutsideTargetFolder(tpath: string): Promise<boolean> {
         if (this._symlinkFileNames.length === 0 && this._symlinkFolders.length === 0) {
             return false;
@@ -174,7 +187,7 @@ class EntryContext implements IEntryContext {
         }
         for (const { folder, realpath } of this._symlinkFolders) {
             if (tpath.includes(folder)) {
-                if (this.isOutside(this.realTargetFolder, realpath)) {
+                if (exfs.isOutside(this.realTargetFolder, realpath)) {
                     return true;
                 }
             }
@@ -182,7 +195,7 @@ class EntryContext implements IEntryContext {
         for (const fileName of this._symlinkFileNames) {
             if (tpath.includes(fileName)) {
                 const realFilePath = await exfs.realpath(tpath);
-                if (this.isOutside(this.realTargetFolder, realFilePath)) {
+                if (exfs.isOutside(this.realTargetFolder, realFilePath)) {
                     return true;
                 }
             }
@@ -420,7 +433,18 @@ export class Unzip extends Cancelable {
                         }
                     });
                     readStream.once("end", () => {
-                        this.createSymlink(linkContent, filePath).then(c, e);
+                        if (
+                            this.options?.safeSymlinksOnly &&
+                            entryContext.isSymlinkTargetOutsideTargetFolder(linkContent, filePath)
+                        ) {
+                            const error = new Error(
+                                `Dangerous link path was refused : "${entryContext.targetFolder}", file: "${filePath}", target: "${linkContent}"`,
+                            );
+                            error.name = "AF_ILLEGAL_TARGET";
+                            e(error);
+                        } else {
+                            this.createSymlink(linkContent, filePath).then(c, e);
+                        }
                     });
                 } else {
                     fileStream = createWriteStream(filePath, { mode });

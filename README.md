@@ -366,7 +366,8 @@ Object
 ### Options: IExtractOptions <a id="iextractoptions"></a>
 
 Object
-- `overwrite?`: String (optional) - If it is true, the target directory will be deleted before extract. The default value is `false`.
+- `overwrite?`: Boolean (optional) - If it is true, the target directory will be deleted before extract. The default value is `false`.
+- `safeSymlinksOnly`: Boolean (optional) - Controls the creation phase of symlinks. The default value is `false`.<br>`true`: Refuses to create any symlink whose target is outside the extraction root.<br>`false`: Allows creating external symlinks. **Note:** Subsequent write operations to these links will still be intercepted by the separate AFWRITE security layer.
 - `symlinkAsFileOnWindows?`: Boolean (optional) - Extract symbolic links as files on Windows. This value is only available on Windows and ignored on other platforms. The default value is `true`.<br>If `true`, the symlink in the zip will be extracted as a normal file on Windows.<br>If `false`, the symlink in the zip will be extracted as a symlink correctly on Windows, but an `EPERM` error will be thrown under non-administrators.
 
     > ⚠**WARNING:** On Windows, the default security policy allows only administrators to create symbolic links. If you set `symlinkAsFileOnWindows` to `false` and the zip contains symlink, be sure to run the code under the administrator, otherwise an `EPERM` error will be thrown.

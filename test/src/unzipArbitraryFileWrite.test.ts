@@ -128,7 +128,7 @@ describe("unzip, safeSymlinksOnly=false", () => {
 });
 
 describe("unzip, safeSymlinksOnly=true", () => {
-    it("extract a zip file that attempt to write file outside output folder, case 1", async () => {
+    it("extract a zip file that attempt to write file outside output folder, case 1, safeSymlinksOnly=true", async () => {
         try {
             await zl.extract(
                 path.join(__dirname, "../unzipResources/arbitrary_file_write.zip"),
@@ -151,7 +151,7 @@ describe("unzip, safeSymlinksOnly=true", () => {
             }
         }
     });
-    it("extract a zip file that attempt to write file outside output folder, case 2", async () => {
+    it("extract a zip file that attempt to write file outside output folder, case 2, safeSymlinksOnly=true", async () => {
         try {
             await zl.extract(
                 path.join(__dirname, "../unzipResources/arbitrary_file_write2.zip"),
@@ -174,7 +174,7 @@ describe("unzip, safeSymlinksOnly=true", () => {
             }
         }
     });
-    it("extract a zip file that attempt to write file to symlink folder which is outside output folder", async () => {
+    it("extract a zip file that attempt to write file to symlink folder which is outside output folder, safeSymlinksOnly=true", async () => {
         try {
             await fs.rimraf(path.join(__dirname, "../unzips/arbitrary_write/output"));
             await fs.rimraf(path.join(__dirname, "../unzips/arbitrary_write/tmp"));
@@ -209,21 +209,9 @@ describe("unzip, safeSymlinksOnly=true", () => {
                     symlinkAsFileOnWindows: false,
                 },
             );
-            if (process.platform === "win32") {
-                assert.ok(true, "Please run this test with administrator.");
-            } else {
-                assert.fail(
-                    "extract a zip file that attempt to write file to symlink folder which is outside output folder",
-                );
-            }
+            assert.ok("extract a zip file that attempt to write file to symlink folder which is outside output folder");
         } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                assert.ok(true, "Please run this test with administrator.");
-            } else if (error.name === "AF_ILLEGAL_TARGET") {
-                assert.ok(true, "name AF_ILLEGAL_TARGET as expected");
-            } else {
-                assert.fail(error);
-            }
+            assert.fail(error);
         }
 
         try {

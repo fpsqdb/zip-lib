@@ -259,9 +259,15 @@ export class Unzip extends Cancelable {
         const token = new CancellationToken();
         this.token = token;
 
-        const { zfile, realTargetFolder } = await this.prepareExtraction(zipFileOrBuffer, targetFolder, token);
-        this.zipFile = zfile;
-        await this.processEntries(zfile, targetFolder, realTargetFolder, token);
+        try {
+            const { zfile, realTargetFolder } = await this.prepareExtraction(zipFileOrBuffer, targetFolder, token);
+            this.zipFile = zfile;
+            await this.processEntries(zfile, targetFolder, realTargetFolder, token);
+        } finally {
+            if (this.token === token) {
+                this.token = null;
+            }
+        }
     }
 
     private async prepareExtraction(
@@ -297,20 +303,22 @@ export class Unzip extends Cancelable {
             const entryEvent = new EntryEvent(total);
             const settle = this.createPromiseSettler(resolve, reject);
             const disposeCancel = token.onCancelled(() => {
-                this.closeZip();
+                this.closeZip(zfile);
                 settle.reject(this.canceledError());
             });
 
             zfile.once("error", (err) => {
                 disposeCancel();
                 anyError = this.wrapError(err, token.isCancelled);
-                this.closeZip();
+                this.closeZip(zfile);
                 settle.reject(anyError);
             });
 
             zfile.once("close", () => {
                 disposeCancel();
-                this.zipFile = null;
+                if (this.zipFile === zfile) {
+                    this.zipFile = null;
+                }
                 if (anyError) {
                     settle.reject(this.wrapError(anyError, token.isCancelled));
                 } else if (token.isCancelled) {
@@ -330,7 +338,7 @@ export class Unzip extends Cancelable {
                     }
                 } catch (error) {
                     anyError = this.wrapError(error, token.isCancelled);
-                    this.closeZip();
+                    this.closeZip(zfile);
                     settle.reject(anyError);
                 }
             });
@@ -341,7 +349,7 @@ export class Unzip extends Cancelable {
 
     private readNextEntry(zfile: yauzl.ZipFile, token: CancellationToken): void {
         if (token.isCancelled) {
-            this.closeZip();
+            this.closeZip(zfile);
             return;
         }
         zfile.readEntry();
@@ -412,9 +420,12 @@ export class Unzip extends Cancelable {
         this.closeZip();
     }
 
-    private closeZip(): void {
-        if (this.zipFile) {
-            this.zipFile.close();
+    private closeZip(zfile?: yauzl.ZipFile): void {
+        const target = zfile ?? this.zipFile;
+        if (target) {
+            target.close();
+        }
+        if (!zfile || this.zipFile === zfile) {
             this.zipFile = null;
         }
     }

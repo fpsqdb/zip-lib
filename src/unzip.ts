@@ -1,7 +1,8 @@
-import { createWriteStream, type WriteStream } from "node:fs";
+import { createWriteStream } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import * as yauzl from "yauzl";
 import { Cancelable, CancellationToken } from "./cancelable";
 import * as exfs from "./fs";
@@ -231,85 +232,141 @@ export class Unzip extends Cancelable {
      */
     public async extract(zipFile: string, targetFolder: string): Promise<void>;
     public async extract(zipFileOrBuffer: string | Buffer, targetFolder: string): Promise<void> {
-        let extractedEntriesCount: number = 0;
         const token = new CancellationToken();
         this.token = token;
+
+        const { zfile, realTargetFolder } = await this.prepareExtraction(zipFileOrBuffer, targetFolder, token);
+        this.zipFile = zfile;
+
+        await this.processEntries(zfile, targetFolder, realTargetFolder, token);
+    }
+
+    private async prepareExtraction(
+        zipFileOrBuffer: string | Buffer,
+        targetFolder: string,
+        token: CancellationToken,
+    ): Promise<{ zfile: yauzl.ZipFile; realTargetFolder: string }> {
         if (this.isOverwrite()) {
             await exfs.rimraf(targetFolder);
         }
         if (token.isCancelled) {
-            return Promise.reject(this.canceledError());
+            throw this.canceledError();
         }
+
         await exfs.ensureFolder(targetFolder);
         const realTargetFolder = await exfs.realpath(targetFolder);
         const zfile = await this.openZip(zipFileOrBuffer, token);
-        this.zipFile = zfile;
-        zfile.readEntry();
-        return new Promise<void>((c, e) => {
+
+        return { zfile, realTargetFolder };
+    }
+
+    private async processEntries(
+        zfile: yauzl.ZipFile,
+        targetFolder: string,
+        realTargetFolder: string,
+        token: CancellationToken,
+    ): Promise<void> {
+        return await new Promise<void>((resolve, reject) => {
+            let extractedEntriesCount = 0;
             let anyError: Error | null = null;
-            const total: number = zfile.entryCount;
+            const total = zfile.entryCount;
+            const entryContext: IEntryContext = new EntryContext(targetFolder, realTargetFolder, this.symlinkToFile());
+            const entryEvent = new EntryEvent(total);
+            const settle = this.createPromiseSettler(resolve, reject);
+
             zfile.once("error", (err) => {
                 this.closeZip();
-                e(this.wrapError(err, token.isCancelled));
+                settle.reject(this.wrapError(err, token.isCancelled));
             });
+
             zfile.once("close", () => {
                 this.zipFile = null;
                 if (anyError) {
-                    e(this.wrapError(anyError, token.isCancelled));
-                } else {
-                    if (token.isCancelled) {
-                        e(this.canceledError());
-                    }
-                    // If the zip content is empty, it will not receive the `zfile.on("entry")` event.
-                    else if (total === 0) {
-                        c(void 0);
-                    }
+                    settle.reject(this.wrapError(anyError, token.isCancelled));
+                } else if (token.isCancelled) {
+                    settle.reject(this.canceledError());
+                } else if (total === 0) {
+                    // If the zip content is empty, it will not receive the zfile.on("entry") event.
+                    settle.resolve();
                 }
             });
+
             // Because openZip is an asynchronous method, openZip may not be completed when calling cancel,
             // so we need to check if it has been canceled after the openZip method returns.
             if (token.isCancelled) {
                 this.closeZip();
                 return;
             }
-            const entryContext: IEntryContext = new EntryContext(targetFolder, realTargetFolder, this.symlinkToFile());
-            const entryEvent: EntryEvent = new EntryEvent(total);
+
             zfile.on("entry", async (entry: yauzl.Entry) => {
-                // use UTF-8 in all situations
-                // see https://github.com/thejoshwolfe/yauzl/issues/84
-                const rawName = (entry.fileName as unknown as Buffer).toString("utf8");
-                // allow backslash
-                const fileName = rawName.replace(/\\/g, "/");
-                // Because `decodeStrings` is `false`, we need to manually verify the entryname
-                // see https://github.com/thejoshwolfe/yauzl#validatefilenamefilename
-                const errorMessage = yauzl.validateFileName(fileName);
-                if (errorMessage != null) {
-                    anyError = new Error(errorMessage);
-                    this.closeZip();
-                    e(anyError);
-                    return;
-                }
-                entryEvent.entryName = fileName;
-                this.onEntryCallback(entryEvent);
-                entryContext.decodeEntryFileName = fileName;
                 try {
-                    if (entryEvent.isPrevented) {
-                        entryEvent.reset();
-                        zfile.readEntry();
-                    } else {
-                        await this.handleEntry(zfile, entry, entryContext, token);
-                    }
+                    await this.handleZipEntry(zfile, entry, entryContext, entryEvent, token);
                     extractedEntriesCount++;
                     if (extractedEntriesCount === total) {
-                        c();
+                        settle.resolve();
                     }
                 } catch (error) {
                     anyError = this.wrapError(error, token.isCancelled);
                     this.closeZip();
-                    e(anyError);
+                    settle.reject(anyError);
                 }
             });
+
+            zfile.readEntry();
         });
+    }
+
+    private createPromiseSettler(resolve: () => void, reject: (error: Error) => void) {
+        let settled = false;
+
+        return {
+            resolve: () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                resolve();
+            },
+            reject: (error: Error) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                reject(error);
+            },
+        };
+    }
+
+    private async handleZipEntry(
+        zfile: yauzl.ZipFile,
+        entry: yauzl.Entry,
+        entryContext: IEntryContext,
+        entryEvent: EntryEvent,
+        token: CancellationToken,
+    ): Promise<void> {
+        // use UTF-8 in all situations
+        // see https://github.com/thejoshwolfe/yauzl/issues/84
+        const rawName = (entry.fileName as unknown as Buffer).toString("utf8");
+        // allow backslash
+        const fileName = rawName.replace(/\\/g, "/");
+        // Because decodeStrings is false, we need to manually verify the entryname
+        // see https://github.com/thejoshwolfe/yauzl#validatefilenamefilename
+        const errorMessage = yauzl.validateFileName(fileName);
+        if (errorMessage != null) {
+            throw new Error(errorMessage);
+        }
+
+        entryEvent.entryName = fileName;
+        this.onEntryCallback(entryEvent);
+        entryContext.decodeEntryFileName = fileName;
+
+        if (entryEvent.isPrevented) {
+            entryEvent.reset();
+            zfile.readEntry();
+            return;
+        }
+
+        await this.handleEntry(zfile, entry, entryContext, token);
     }
 
     /**
@@ -331,43 +388,32 @@ export class Unzip extends Cancelable {
         }
     }
 
-    private openZip(zipFileOrBuffer: string | Buffer, token: CancellationToken): Promise<yauzl.ZipFile> {
-        if (typeof zipFileOrBuffer === "string") {
-            return new Promise<yauzl.ZipFile>((c, e) => {
-                yauzl.open(
-                    zipFileOrBuffer,
-                    {
-                        lazyEntries: true,
-                        // see https://github.com/thejoshwolfe/yauzl/issues/84
-                        decodeStrings: false,
-                    },
-                    (err, zfile) => {
-                        if (err) {
-                            e(this.wrapError(err, token.isCancelled));
-                        } else {
-                            c(zfile);
-                        }
-                    },
-                );
-            });
-        }
-        return new Promise<yauzl.ZipFile>((c, e) => {
-            yauzl.fromBuffer(
-                zipFileOrBuffer,
-                {
-                    lazyEntries: true,
-                    // see https://github.com/thejoshwolfe/yauzl/issues/84
-                    decodeStrings: false,
-                },
-                (err, zfile) => {
+    private async openZip(zipFileOrBuffer: string | Buffer, token: CancellationToken): Promise<yauzl.ZipFile> {
+        const options: yauzl.Options = {
+            lazyEntries: true,
+            // see https://github.com/thejoshwolfe/yauzl/issues/84
+            decodeStrings: false,
+        } as const;
+
+        try {
+            return await new Promise<yauzl.ZipFile>((resolve, reject) => {
+                const callback = (err: Error | null, zfile: yauzl.ZipFile) => {
                     if (err) {
-                        e(this.wrapError(err, token.isCancelled));
+                        reject(this.wrapError(err, token.isCancelled));
                     } else {
-                        c(zfile);
+                        resolve(zfile);
                     }
-                },
-            );
-        });
+                };
+
+                if (typeof zipFileOrBuffer === "string") {
+                    yauzl.open(zipFileOrBuffer, options, callback);
+                } else {
+                    yauzl.fromBuffer(zipFileOrBuffer, options, callback);
+                }
+            });
+        } catch (error) {
+            throw this.wrapError(error, token.isCancelled);
+        }
     }
 
     private async handleEntry(
@@ -389,12 +435,12 @@ export class Unzip extends Cancelable {
     }
 
     private openZipFileStream(zfile: yauzl.ZipFile, entry: yauzl.Entry, token: CancellationToken): Promise<Readable> {
-        return new Promise<Readable>((c, e) => {
+        return new Promise<Readable>((resolve, reject) => {
             zfile.openReadStream(entry, (err, readStream) => {
                 if (err) {
-                    e(this.wrapError(err, token.isCancelled));
+                    reject(this.wrapError(err, token.isCancelled));
                 } else {
-                    c(readStream);
+                    resolve(readStream);
                 }
             });
         });
@@ -426,63 +472,71 @@ export class Unzip extends Cancelable {
         entryContext: IEntryContext,
         token: CancellationToken,
     ): Promise<void> {
-        let fileStream: WriteStream;
-        token.onCancelled(() => {
-            if (fileStream) {
-                readStream.unpipe(fileStream);
-                fileStream.destroy(this.canceledError());
+        try {
+            const filePath = entryContext.getFilePath();
+            const mode = this.modeFromEntry(entry);
+            // see https://unix.stackexchange.com/questions/193465/what-file-mode-is-a-symlink
+            const isSymlink = (mode & 0o170000) === 0o120000;
+            if (isSymlink) {
+                entryContext.symlinkFileNames.push(
+                    path.resolve(path.join(entryContext.targetFolder, entryContext.decodeEntryFileName)),
+                );
             }
-        });
-        return new Promise<void>((c, e) => {
-            try {
-                const filePath = entryContext.getFilePath();
-                readStream.once("error", (err) => {
-                    e(this.wrapError(err, token.isCancelled));
+            if (isSymlink && !this.symlinkToFile()) {
+                const linkContent = await this.readStreamContent(readStream, token);
+
+                if (
+                    this.options?.safeSymlinksOnly &&
+                    entryContext.isSymlinkTargetOutsideTargetFolder(linkContent, filePath)
+                ) {
+                    const error = new Error(
+                        `Dangerous link path was refused : "${entryContext.targetFolder}", file: "${filePath}", target: "${linkContent}"`,
+                    );
+                    error.name = "AF_ILLEGAL_TARGET";
+                    throw error;
+                }
+
+                await this.createSymlink(linkContent, filePath);
+            } else {
+                const fileStream = createWriteStream(filePath, { mode });
+                const pipelinePromise = pipeline(readStream, fileStream);
+
+                const disposable = token.onCancelled(() => {
+                    fileStream.destroy(this.canceledError());
                 });
 
-                const mode = this.modeFromEntry(entry);
-                // see https://unix.stackexchange.com/questions/193465/what-file-mode-is-a-symlink
-                const isSymlink = (mode & 0o170000) === 0o120000;
-                if (isSymlink) {
-                    entryContext.symlinkFileNames.push(
-                        path.resolve(path.join(entryContext.targetFolder, entryContext.decodeEntryFileName)),
-                    );
+                try {
+                    await pipelinePromise;
+                } finally {
+                    disposable();
                 }
-                if (isSymlink && !this.symlinkToFile()) {
-                    let linkContent: string = "";
-                    readStream.on("data", (chunk: string | Buffer) => {
-                        if (chunk instanceof String) {
-                            linkContent += chunk;
-                        } else {
-                            linkContent += chunk.toString();
-                        }
-                    });
-                    readStream.once("end", () => {
-                        if (
-                            this.options?.safeSymlinksOnly &&
-                            entryContext.isSymlinkTargetOutsideTargetFolder(linkContent, filePath)
-                        ) {
-                            const error = new Error(
-                                `Dangerous link path was refused : "${entryContext.targetFolder}", file: "${filePath}", target: "${linkContent}"`,
-                            );
-                            error.name = "AF_ILLEGAL_TARGET";
-                            e(error);
-                        } else {
-                            this.createSymlink(linkContent, filePath).then(c, e);
-                        }
-                    });
-                } else {
-                    fileStream = createWriteStream(filePath, { mode });
-                    fileStream.once("close", () => c());
-                    fileStream.once("error", (err) => {
-                        e(this.wrapError(err, token.isCancelled));
-                    });
-                    readStream.pipe(fileStream);
-                }
-            } catch (error) {
-                e(this.wrapError(error, token.isCancelled));
             }
+        } catch (error) {
+            throw this.wrapError(error, token.isCancelled);
+        }
+    }
+
+    private async readStreamContent(readStream: Readable, token: CancellationToken): Promise<string> {
+        let linkContent = "";
+        const readPromise = new Promise<void>((resolve, reject) => {
+            readStream.on("data", (chunk: string | Buffer) => {
+                linkContent += typeof chunk === "string" ? chunk : chunk.toString();
+            });
+            readStream.once("end", resolve);
+            readStream.once("error", (err) => {
+                reject(this.wrapError(err, token.isCancelled));
+            });
         });
+        const disposable = token.onCancelled(() => {
+            readStream.destroy(this.canceledError());
+        });
+
+        try {
+            await readPromise;
+            return linkContent;
+        } finally {
+            disposable();
+        }
     }
 
     private modeFromEntry(entry: yauzl.Entry): number {
@@ -493,7 +547,7 @@ export class Unzip extends Cancelable {
             .reduce((a, b) => a + b, attr & 61440 /* S_IFMT */);
     }
 
-    private async createSymlink(linkContent: string, des: string): Promise<void> {
+    private async createSymlink(linkContent: string, filePath: string): Promise<void> {
         let linkType: "dir" | "file" | "junction" | null | undefined = "file";
         if (process.platform === "win32") {
             if (/\/$/.test(linkContent)) {
@@ -501,7 +555,7 @@ export class Unzip extends Cancelable {
             } else {
                 let targetPath = linkContent;
                 if (!path.isAbsolute(linkContent)) {
-                    targetPath = path.join(path.dirname(des), linkContent);
+                    targetPath = path.join(path.dirname(filePath), linkContent);
                 }
                 try {
                     const stat = await fs.stat(targetPath);
@@ -513,7 +567,7 @@ export class Unzip extends Cancelable {
                 }
             }
         }
-        await fs.symlink(linkContent, des, linkType);
+        await fs.symlink(linkContent, filePath, linkType);
     }
 
     private isOverwrite(): boolean {

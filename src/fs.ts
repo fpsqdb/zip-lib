@@ -39,16 +39,15 @@ export async function realpath(target: string): Promise<string> {
 
 export async function readdirp(folder: string): Promise<FileEntry[]> {
     const result: FileEntry[] = [];
-    const files = await fs.readdir(folder);
-    for (const item of files) {
-        const file = path.join(folder, item);
-        const entry = await getFileEntry(file);
+    const filePaths = (await fs.readdir(folder)).map((item) => path.join(folder, item));
+    const entries = await Promise.all(filePaths.map((filePath) => getFileEntry(filePath)));
+
+    for (const entry of entries) {
         if (!entry.isSymbolicLink && entry.type === "dir") {
-            const subFiles = await readdirp(file);
+            const subFiles = await readdirp(entry.path);
             if (subFiles.length > 0) {
                 result.push(...subFiles);
                 // If the folder is not empty, don't need to add the folder itself.
-                // continue and skip the code below
                 continue;
             }
         }
@@ -59,26 +58,34 @@ export async function readdirp(folder: string): Promise<FileEntry[]> {
 
 export async function getFileEntry(target: string): Promise<FileEntry> {
     const stat = await fs.lstat(target);
-    let isSymbolicLink = false;
-    let fileType: FileType = "file";
     if (stat.isDirectory()) {
-        fileType = "dir";
-    } else {
-        if (stat.isSymbolicLink()) {
-            isSymbolicLink = true;
-            // If the path is a link, we must instead use fs.stat() to find out if the
-            // link is a directory or not because lstat will always return the stat of
-            // the link which is always a file.
-            const actualStat = await fs.stat(target);
-            if (actualStat.isDirectory()) {
-                fileType = "dir";
-            }
-        }
+        return {
+            path: target,
+            isSymbolicLink: false,
+            type: "dir",
+            mtime: stat.mtime,
+            mode: stat.mode,
+        };
     }
+
+    if (!stat.isSymbolicLink()) {
+        return {
+            path: target,
+            isSymbolicLink: false,
+            type: "file",
+            mtime: stat.mtime,
+            mode: stat.mode,
+        };
+    }
+
+    // If the path is a link, we must instead use fs.stat() to find out if the
+    // link is a directory or not because lstat will always return the stat of
+    // the link which is always a file.
+    const actualStat = await fs.stat(target);
     return {
         path: target,
-        isSymbolicLink,
-        type: fileType,
+        isSymbolicLink: true,
+        type: actualStat.isDirectory() ? "dir" : "file",
         mtime: stat.mtime,
         mode: stat.mode,
     };
@@ -87,23 +94,22 @@ export async function getFileEntry(target: string): Promise<FileEntry> {
 export async function ensureFolder(folder: string): Promise<FolderStat> {
     // stop at root
     if (folder === path.dirname(folder)) {
-        return Promise.resolve({
+        return {
             isDirectory: true,
             isSymbolicLink: false,
-        });
+        };
     }
     try {
-        const result = await mkdir(folder);
-        return result;
+        return await mkdir(folder);
     } catch (error) {
         // ENOENT: a parent folder does not exist yet, continue
         // to create the parent folder and then try again.
         if (error.code === "ENOENT") {
             await ensureFolder(path.dirname(folder));
-            return mkdir(folder);
+            return await mkdir(folder);
         }
         // Any other error
-        return Promise.reject(error);
+        throw error;
     }
 }
 
@@ -119,7 +125,7 @@ export async function pathExists(target: string): Promise<boolean> {
 export async function rimraf(target: string): Promise<void> {
     if (isRootPath(target)) {
         // refuse to recursively delete root
-        return Promise.reject(new Error(`Refuse to recursively delete root, path: "${target}"`));
+        throw new Error(`Refuse to recursively delete root, path: "${target}"`);
     }
     try {
         const stat = await fs.lstat(target);
@@ -130,17 +136,16 @@ export async function rimraf(target: string): Promise<void> {
             await Promise.all(children.map((child) => rimraf(path.join(target, child))));
             // Folder
             await fs.rmdir(target);
+            return;
         }
+
         // Single file delete
-        else {
-            // chmod as needed to allow for unlink
-            const mode = stat.mode;
-            if (!(mode & 128)) {
-                // 128 === 0200
-                await fs.chmod(target, mode | 128);
-            }
-            return fs.unlink(target);
+        const mode = stat.mode;
+        if (!(mode & 128)) {
+            // 128 === 0200
+            await fs.chmod(target, mode | 128);
         }
+        await fs.unlink(target);
     } catch (error) {
         if (error.code !== "ENOENT") {
             throw error;
@@ -158,36 +163,40 @@ async function mkdir(folder: string): Promise<FolderStat> {
     } catch (error) {
         // ENOENT: a parent folder does not exist yet or folder name is invalid.
         if (error.code === "ENOENT") {
-            return Promise.reject(error);
+            throw error;
         }
         // Any other error: check if folder exists and
         // return normally in that case if its a folder
         try {
-            const fileStat = await fs.lstat(folder);
-            if (fileStat.isSymbolicLink()) {
-                const realFilePath = await realpath(folder);
-                const realFileStat = await fs.lstat(realFilePath);
-                if (!realFileStat.isDirectory()) {
-                    return Promise.reject(new Error(`"${folder}" exists and is not a directory.`));
-                }
-                return {
-                    isDirectory: false,
-                    isSymbolicLink: true,
-                    realpath: realFilePath,
-                };
-            } else {
-                if (!fileStat.isDirectory()) {
-                    return Promise.reject(new Error(`"${folder}" exists and is not a directory.`));
-                }
-                return {
-                    isDirectory: true,
-                    isSymbolicLink: false,
-                };
-            }
+            return await statExistingFolder(folder);
         } catch (_statError) {
             throw error; // rethrow original error
         }
     }
+}
+
+async function statExistingFolder(folder: string): Promise<FolderStat> {
+    const fileStat = await fs.lstat(folder);
+    if (!fileStat.isSymbolicLink()) {
+        if (!fileStat.isDirectory()) {
+            throw new Error(`"${folder}" exists and is not a directory.`);
+        }
+        return {
+            isDirectory: true,
+            isSymbolicLink: false,
+        };
+    }
+
+    const realFilePath = await realpath(folder);
+    const realFileStat = await fs.lstat(realFilePath);
+    if (!realFileStat.isDirectory()) {
+        throw new Error(`"${folder}" exists and is not a directory.`);
+    }
+    return {
+        isDirectory: false,
+        isSymbolicLink: true,
+        realpath: realFilePath,
+    };
 }
 
 // "A"

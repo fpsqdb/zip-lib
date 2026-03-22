@@ -15,6 +15,12 @@ interface ZipFolderEntry {
     path: string;
     metadataPath?: string;
 }
+
+type ArchiveSettler = {
+    resolve(value: void | Buffer): void;
+    reject(error: Error): void;
+};
+
 export interface IZipOptions {
     /**
      * Indicates how to handle when the given path is a symbolic link.
@@ -102,6 +108,23 @@ export class Zip extends Cancelable {
     public async archive(zipFile?: string): Promise<void | Buffer> {
         const token = new CancellationToken();
         this.token = token;
+        const zip = await this.prepareArchive(zipFile);
+
+        return await new Promise<void | Buffer>((resolve, reject) => {
+            const settle = this.createPromiseSettler(resolve, reject);
+            this.bindArchiveOutput(zip, zipFile, token, settle);
+
+            this.addQueuedEntries(zip, token)
+                .catch((error) => {
+                    settle.reject(this.wrapError(error, token.isCancelled));
+                })
+                .finally(() => {
+                    zip.end();
+                });
+        });
+    }
+
+    private async prepareArchive(zipFile?: string): Promise<yazl.ZipFile> {
         this.isPipe = false;
         this.isChunk = false;
         if (zipFile) {
@@ -110,65 +133,118 @@ export class Zip extends Cancelable {
         // Re-instantiate yazl every time the archive method is called to ensure that files are not added repeatedly.
         // This will also make the Zip class reusable.
         this.yazlFile = new yazl.ZipFile();
-        return new Promise<void | Buffer>((c, e) => {
-            this.yazlFile.once("error", (err) => {
-                e(this.wrapError(err, token.isCancelled));
+        return this.yazlFile;
+    }
+
+    private bindArchiveOutput(
+        zip: yazl.ZipFile,
+        zipFile: string | undefined,
+        token: CancellationToken,
+        settle: ArchiveSettler,
+    ): void {
+        if (zipFile) {
+            void this.archiveToFile(zip, zipFile, token, settle);
+            return;
+        }
+
+        void this.archiveToBuffer(zip, token, settle);
+    }
+
+    private async archiveToFile(
+        zip: yazl.ZipFile,
+        zipFile: string,
+        token: CancellationToken,
+        settle: ArchiveSettler,
+    ): Promise<void> {
+        this.zipStream = createWriteStream(zipFile);
+        this.isPipe = true;
+        const archivePromise = new Promise<void>((resolve) => {
+            zip.once("error", (err) => {
+                settle.reject(this.wrapError(err, token.isCancelled));
+                resolve();
             });
-            const zip = this.yazlFile;
-            if (!token.isCancelled) {
-                zip.outputStream.once("error", (err) => {
-                    e(this.wrapError(err, token.isCancelled));
-                });
-                if (zipFile) {
-                    // archive to file.
-                    this.zipStream = createWriteStream(zipFile);
-                    this.zipStream.once("error", (err) => {
-                        e(this.wrapError(err, token.isCancelled));
-                    });
-                    this.zipStream.once("close", () => {
-                        if (token.isCancelled) {
-                            e(this.canceledError());
-                        } else {
-                            c(void 0);
-                        }
-                        this.isPipe = false;
-                    });
-                    zip.outputStream.pipe(this.zipStream);
-                    this.isPipe = true;
+            this.zipStream.once("error", (err) => {
+                settle.reject(this.wrapError(err, token.isCancelled));
+                resolve();
+            });
+            this.zipStream.once("close", () => {
+                if (token.isCancelled) {
+                    settle.reject(this.canceledError());
                 } else {
-                    // archive to buffer.
-                    const chunks: Buffer[] = [];
-                    zip.outputStream.on("data", (chunk: Buffer) => {
-                        chunks.push(chunk);
-                    });
-                    zip.outputStream.on("end", () => {
-                        const finalBuffer = Buffer.concat(chunks);
-                        c(finalBuffer);
-                    });
-                    zip.outputStream.on("error", (err) => {
-                        e(this.wrapError(err, token.isCancelled));
-                    });
-                    this.isChunk = true;
+                    settle.resolve(void 0);
                 }
-            }
-            const start = async () => {
-                try {
-                    const files = this.zipFiles;
-                    for (const file of files) {
-                        const entry = await exfs.getFileEntry(file.path);
-                        await this.addEntry(zip, entry, file, token);
-                    }
-                    if (this.zipFolders.length > 0) {
-                        await this.walkDir(this.zipFolders, token);
-                    }
-                } catch (error) {
-                    e(this.wrapError(error, token.isCancelled));
-                }
-            };
-            start().finally(() => {
-                zip.end();
+                resolve();
             });
         });
+
+        try {
+            zip.outputStream.pipe(this.zipStream);
+            await archivePromise;
+        } finally {
+            this.isPipe = false;
+        }
+    }
+
+    private async archiveToBuffer(zip: yazl.ZipFile, token: CancellationToken, settle: ArchiveSettler): Promise<void> {
+        const chunks: Buffer[] = [];
+        this.isChunk = true;
+        const archivePromise = new Promise<void>((resolve) => {
+            zip.once("error", (err) => {
+                settle.reject(this.wrapError(err, token.isCancelled));
+                resolve();
+            });
+            zip.outputStream.on("data", (chunk: Buffer) => {
+                chunks.push(chunk);
+            });
+            zip.outputStream.once("end", () => {
+                settle.resolve(Buffer.concat(chunks));
+                resolve();
+            });
+            zip.outputStream.once("error", (err) => {
+                settle.reject(this.wrapError(err, token.isCancelled));
+                resolve();
+            });
+        });
+
+        try {
+            await archivePromise;
+        } finally {
+            this.isChunk = false;
+        }
+    }
+
+    private createPromiseSettler(
+        resolve: (value: void | Buffer) => void,
+        reject: (error: Error) => void,
+    ): ArchiveSettler {
+        let settled = false;
+
+        return {
+            resolve: (value: void | Buffer) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                resolve(value);
+            },
+            reject: (error: Error) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                reject(error);
+            },
+        };
+    }
+
+    private async addQueuedEntries(zip: yazl.ZipFile, token: CancellationToken): Promise<void> {
+        for (const file of this.zipFiles) {
+            const entry = await exfs.getFileEntry(file.path);
+            await this.addEntry(zip, entry, file, token);
+        }
+        if (this.zipFolders.length > 0) {
+            await this.walkDir(zip, this.zipFolders, token);
+        }
     }
 
     /**
@@ -193,7 +269,7 @@ export class Zip extends Cancelable {
             if (this.followSymlink()) {
                 if (entry.type === "dir") {
                     const realPath = await exfs.realpath(file.path);
-                    await this.walkDir([{ path: realPath, metadataPath: file.metadataPath }], token);
+                    await this.walkDir(zip, [{ path: realPath, metadataPath: file.metadataPath }], token);
                 } else {
                     zip.addFile(file.path, file.metadataPath, this.getYazlOption());
                 }
@@ -218,15 +294,15 @@ export class Zip extends Cancelable {
         metadataPath: string,
         token: CancellationToken,
     ): Promise<void> {
-        return new Promise<void>((c, e) => {
+        return new Promise<void>((resolve, reject) => {
             const fileStream = createReadStream(file.path);
             fileStream.once("error", (err) => {
                 const wrappedError = this.wrapError(err, token.isCancelled);
                 this.stop(wrappedError);
-                e(wrappedError);
+                reject(wrappedError);
             });
             fileStream.once("close", () => {
-                c();
+                resolve();
             });
 
             // If the file attribute is known, add the entry using `addReadStream`,
@@ -248,7 +324,7 @@ export class Zip extends Cancelable {
         });
     }
 
-    private async walkDir(folders: ZipFolderEntry[], token: CancellationToken): Promise<void> {
+    private async walkDir(zip: yazl.ZipFile, folders: ZipFolderEntry[], token: CancellationToken): Promise<void> {
         for (const folder of folders) {
             if (token.isCancelled) {
                 return;
@@ -263,13 +339,13 @@ export class Zip extends Cancelable {
                     const metadataPath = folder.metadataPath
                         ? path.join(folder.metadataPath, relativePath)
                         : relativePath;
-                    await this.addEntry(this.yazlFile, entry, { path: entry.path, metadataPath }, token);
+                    await this.addEntry(zip, entry, { path: entry.path, metadataPath }, token);
                 }
             } else {
                 // If the folder is empty and the metadataPath has a value,
                 // an empty folder should be created based on the metadataPath
                 if (folder.metadataPath) {
-                    this.yazlFile.addEmptyDirectory(folder.metadataPath);
+                    zip.addEmptyDirectory(folder.metadataPath);
                 }
             }
         }

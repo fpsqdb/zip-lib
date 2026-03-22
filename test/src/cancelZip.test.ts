@@ -4,7 +4,7 @@ import { describe, it } from "vitest";
 import * as zl from "../../src";
 
 describe("zip", () => {
-    it("cancel zip", async () => {
+    it("cancel zip to file", async () => {
         try {
             const zip = new zl.Zip();
             const target = path.join(__dirname, "../zips/node_modules.zip");
@@ -16,7 +16,24 @@ describe("zip", () => {
             assert.fail("cancel zip");
         } catch (error) {
             if (error.name === "Canceled") {
-                assert.ok(true, "cancel zip");
+                assert.ok(true, "cancel zip to file");
+            } else {
+                assert.fail(error);
+            }
+        }
+    });
+    it("cancel zip to buffer", async () => {
+        try {
+            const zip = new zl.Zip();
+            zip.addFolder(path.join(__dirname, "../../node_modules"));
+            setTimeout(() => {
+                zip.cancel();
+            }, 500);
+            await zip.archive();
+            assert.fail("cancel zip");
+        } catch (error) {
+            if (error.name === "Canceled") {
+                assert.ok(true, "cancel zip to buffer");
             } else {
                 assert.fail(error);
             }

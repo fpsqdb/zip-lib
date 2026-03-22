@@ -1,6 +1,6 @@
 import * as assert from "node:assert";
 import * as path from "node:path";
-import { describe, it } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import * as exfs from "../../src/fs";
 
 describe("fs helper", () => {
@@ -205,6 +205,51 @@ describe("fs helper", () => {
                     assert.fail(error);
                 }
             }
+        });
+    });
+
+    describe("isOutside", () => {
+        const baseDir = path.resolve("test-root");
+
+        test("should return false for the exact same directory", () => {
+            expect(exfs.isOutside(baseDir, baseDir)).toBe(false);
+        });
+
+        test("should return false for a file or subfolder deep inside", () => {
+            const insidePath = path.join(baseDir, "subdir", "deep", "file.txt");
+            expect(exfs.isOutside(baseDir, insidePath)).toBe(false);
+        });
+
+        test("should return true for a path that uses .. to climb out", () => {
+            const outsidePath = path.join(baseDir, "..", "external_file.txt");
+            expect(exfs.isOutside(baseDir, outsidePath)).toBe(true);
+        });
+
+        test("should return false for .. that resolves back to inside the base", () => {
+            const safePath = path.join(baseDir, "sub", "..", "file.txt");
+            expect(exfs.isOutside(baseDir, safePath)).toBe(false);
+        });
+
+        test("should return true for absolute system paths", () => {
+            const systemPath = process.platform === "win32" ? "C:\\Windows" : "/etc/passwd";
+            expect(exfs.isOutside(baseDir, systemPath)).toBe(true);
+        });
+
+        if (process.platform === "win32") {
+            test("Windows: should return true for different drive letters", () => {
+                const baseOnC = "C:\\App";
+                const targetOnD = "D:\\Data";
+                expect(exfs.isOutside(baseOnC, targetOnD)).toBe(true);
+            });
+            test("Windows: should return false for same drive letters", () => {
+                const baseOnC = "C:\\App";
+                const targetOnC = "C:\\App\\Data";
+                expect(exfs.isOutside(baseOnC, targetOnC)).toBe(false);
+            });
+        }
+
+        test("should handle relative paths correctly by resolving them first", () => {
+            expect(exfs.isOutside(".", "..")).toBe(true);
         });
     });
 });

@@ -34,6 +34,7 @@ npm install zip-lib
     - Class: [Unzip](#class-unzip)
     - Options: [IZipOptions](#izipoptions)
     - Options: [IExtractOptions](#iextractoptions)
+    - Event: [IEntryEvent](#event-ientryevent)
 
 ## Zip
 You can use **zip-lib** to compress files or folders.
@@ -321,166 +322,152 @@ function cancel() {
 
 ## API
 
+Choose the API based on how much control you need:
+
+- Use [`archiveFile`](#archivefile), [`archiveFolder`](#archivefolder), and [`extract`](#extract) for simple one-shot operations.
+- Use [`Zip`](#class-zip) when you need to add multiple files or folders, rename entries, or cancel compression.
+- Use [`Unzip`](#class-unzip) when you need to filter entries with `onEntry` or cancel extraction.
+
 ### Method: archiveFile <a id="archivefile"></a>
 
-**archiveFile(file, zipFile, [options])**
+Compress a single file.
 
-Compress a single file to the specified zip file path.
+```ts
+archiveFile(file: string, options?: IZipOptions): Promise<Buffer>
+archiveFile(file: string, zipFile: string, options?: IZipOptions): Promise<void>
+```
 
-- `file`: String
-- `zipFile`: String
-- `options?`: [IZipOptions](#izipoptions) (optional)
+- `file`: Path to the source file.
+- `zipFile`: Optional output zip file path.
+- `options`: Optional [IZipOptions](#izipoptions).
 
-Returns: `Promise<void>`
-
-**archiveFile(file, [options])**
-
-Compress a single file to a buffer.
-
-- `file`: String
-- `options?`: [IZipOptions](#izipoptions) (optional)
-
-Returns: `Promise<Buffer>`
+If `zipFile` is provided, the archive is written to disk and the method returns `Promise<void>`. Otherwise it returns the generated zip as a `Buffer`.
 
 ### Method: archiveFolder <a id="archivefolder"></a>
 
-**archiveFolder(folder, zipFile, [options])**
+Compress all contents of a folder.
 
-Compress all the contents of the specified folder to the specified zip file path.
+```ts
+archiveFolder(folder: string, options?: IZipOptions): Promise<Buffer>
+archiveFolder(folder: string, zipFile: string, options?: IZipOptions): Promise<void>
+```
 
-- `folder`: String
-- `zipFile`: String
-- `options?`: [IZipOptions](#izipoptions) (optional)
+- `folder`: Path to the source folder.
+- `zipFile`: Optional output zip file path.
+- `options`: Optional [IZipOptions](#izipoptions).
 
-Returns: `Promise<void>`
-
-**archiveFolder(folder, [options])**
-
-Compress all the contents of the specified folder to a buffer.
-
-- `folder`: String
-- `options?`: [IZipOptions](#izipoptions) (optional)
-
-Returns: `Promise<Buffer>`
+If `zipFile` is provided, the archive is written to disk and the method returns `Promise<void>`. Otherwise it returns the generated zip as a `Buffer`.
 
 ### Method: extract <a id="extract"></a>
 
-**extract(zipFile, targetFolder, [options])**
+Extract a zip file or zip buffer to a target folder.
 
-Extract a zip file to the specified location.
+```ts
+extract(zipFile: string, targetFolder: string, options?: IExtractOptions): Promise<void>
+extract(zipBuffer: Buffer, targetFolder: string, options?: IExtractOptions): Promise<void>
+```
 
-- `zipFile`: String
-- `targetFolder`: String
-- `options?`: [IExtractOptions](#iextractoptions) (optional)
+- `zipFile`: Path to a zip file on disk.
+- `zipBuffer`: A zip archive in memory.
+- `targetFolder`: Destination folder.
+- `options`: Optional [IExtractOptions](#iextractoptions).
 
-Returns: `Promise<void>`
+### Class: Zip <a id="class-zip"></a>
 
-**extract(zipBuffer, targetFolder, [options])**
+Build an archive incrementally when the top-level helpers are not enough.
 
-Extract the zip buffer to the specified location.
+**Constructor**
 
-- `zipBuffer`: Buffer
-- `targetFolder`: String
-- `options?`: [IExtractOptions](#iextractoptions) (optional)
+```ts
+new Zip(options?: IZipOptions)
+```
 
-Returns: `Promise<void>`
+- `options`: Optional [IZipOptions](#izipoptions).
 
-### Class: Zip<a id="class-zip"></a>
-Compress files or folders into a zip file.
+**Methods**
 
-**Constructor: new Zip([options])**
+```ts
+addFile(file: string, metadataPath?: string): void
+addFolder(folder: string, metadataPath?: string): void
+archive(): Promise<Buffer>
+archive(zipFile: string): Promise<void>
+cancel(): void
+```
 
-- `options?`: [IZipOptions](#izipoptions)
+- `addFile`: Adds one file to the archive.
+- `addFolder`: Adds one folder to the archive.
+- `metadataPath`: Optional path stored inside the zip. A valid `metadataPath` must not start with `/` or `/[A-Za-z]:\//`, and must not contain `..`.
+- `archive()`: Returns the zip as a `Buffer`.
+- `archive(zipFile)`: Writes the zip directly to disk.
+- `cancel()`: Cancels compression. Calling it after completion has no effect.
 
-**Method: addFile(file, [metadataPath])**
+Use `metadataPath` to rename files or folders inside the archive. It is typically computed with `path.relative(root, realPath)`.
 
-Adds a file from the file system at `realPath` to the zip file as `metadataPath`.
+### Class: Unzip <a id="class-unzip"></a>
 
-- `file`: String
-- `metadataPath?`: String (optional) - Typically, `metadataPath` would be calculated as `path.relative(root, realPath)`. A valid `metadataPath` must not start with `/` or `/[A-Za-z]:\//`, and must not contain `..`.
+Extract with entry filtering and cancellation support.
 
-Returns: `void`
+**Constructor**
 
-**Method: addFolder(folder, [metadataPath])**
+```ts
+new Unzip(options?: IExtractOptions)
+```
 
-Adds a folder from the file system at `realPath` to the zip file as `metadataPath`.
+- `options`: Optional [IExtractOptions](#iextractoptions).
 
-- `folder`: String
-- `metadataPath?`: String (optional) - Typically metadataPath would be calculated as path.relative(root, realPath). A valid metadataPath must not start with `/` or `/[A-Za-z]:\//`, and must not contain `..`.
+**Methods**
 
-Returns: `void`
+```ts
+extract(zipFile: string, targetFolder: string): Promise<void>
+extract(zipBuffer: Buffer, targetFolder: string): Promise<void>
+cancel(): void
+```
 
-**Method: archive(zipFile)**
-
-Zips the content and saves it directly to the specified file path.
-
-- `zipFile`: String
-
-Returns: `Promise<void>`
-
-**Method: archive()**
-
-Zips the content to a single buffer.
-
-Returns: `Promise<Buffer>`
-
-**Method: cancel()**
-
-Cancel compression. If the `cancel` method is called after the archive is complete, nothing will happen.
-
-Returns: `void`
-
-### Class: Unzip<a id="class-unzip"></a>
-Extract a zip file.
-
-**Constructor: new Unzip([options])**
-
-- `options?`: [IExtractOptions](#iextractoptions) (optional)
-
-**Method: extract(zipFile, targetFolder)**
-
-Extract the zip file to the specified location.
-
-- `zipFile`: String
-- `targetFolder`: String
-
-Returns: `Promise<void>`
-
-**Method: extract(zipBuffer, targetFolder)**
-
-Extract the zip buffer to the specified location.
-
-- `zipBuffer`: Buffer
-- `targetFolder`: String
-
-Returns: `Promise<void>`
-
-**Method: cancel()**
-
-If the `cancel` method is called after the extract is complete, nothing will happen.
-
-Returns: `void`
+- `extract(...)`: Extracts from a zip file path or a `Buffer`.
+- `cancel()`: Cancels extraction. Calling it after completion has no effect.
 
 ### Options: IZipOptions <a id="izipoptions"></a>
 
-Object
-- `followSymlinks?`: Boolean (optional) - Indicates how to handle when the given path is a symbolic link. The default value is `false`.<br>`true`: add the target of the symbolic link to the zip.<br>`false`: add symbolic link itself to the zip.
-- `compressionLevel?`: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 - Sets the compression level. The default value is `6`.<br>`0`: the file data will be stored.<br>`1-9`: the file data will be deflated.
+```ts
+interface IZipOptions {
+  followSymlinks?: boolean;
+  compressionLevel?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+}
+```
+
+- `followSymlinks`: Default `false`. If `true`, adds the target of a symbolic link. If `false`, adds the symbolic link itself.
+- `compressionLevel`: Default `6`. Use `0` to store file data without compression, or `1`-`9` to deflate file data.
 
 ### Options: IExtractOptions <a id="iextractoptions"></a>
 
-Object
-- `overwrite?`: Boolean (optional) - If it is `true`, the target directory will be deleted before extraction. The default value is `false`.
-- `safeSymlinksOnly?`: Boolean (optional) - Controls the creation phase of symlinks. The default value is `false`.<br>`true`: Refuses to create any symlink whose target is outside the extraction root.<br>`false`: Allows creating external symlinks. **Note:** Subsequent write operations to these links will still be intercepted by the separate AFWRITE security layer.
-- `symlinkAsFileOnWindows?`: Boolean (optional) - Extract symbolic links as files on Windows. This value is only available on Windows and ignored on other platforms. The default value is `true`.<br>If `true`, the symlink in the zip will be extracted as a normal file on Windows.<br>If `false`, the symlink in the zip will be extracted as a symlink correctly on Windows, but an `EPERM` error will be thrown under non-administrators.
+```ts
+interface IExtractOptions {
+  overwrite?: boolean;
+  safeSymlinksOnly?: boolean;
+  symlinkAsFileOnWindows?: boolean;
+  onEntry?: (event: IEntryEvent) => void;
+}
+```
 
-    > ⚠**WARNING:** On Windows, the default security policy allows only administrators to create symbolic links. If you set `symlinkAsFileOnWindows` to `false` and the zip contains symlink, be sure to run the code as an administrator; otherwise, an `EPERM` error will be thrown.
+- `overwrite`: Default `false`. If `true`, deletes the target directory before extraction.
+- `safeSymlinksOnly`: Default `false`. If `true`, refuses to create symlinks whose targets are outside the extraction root.
+- `symlinkAsFileOnWindows`: Default `true`. On Windows, if `true`, symbolic links are extracted as regular files. If `false`, the library tries to create real symbolic links instead. This may fail with `EPERM` when the current process is not allowed to create symlinks. Keep the default for better compatibility; set this to `false` only if you want to preserve symlinks as symlinks.
+- `onEntry`: Called before an entry is extracted. Use it to inspect or skip entries.
 
-- `onEntry?`: Function (optional) - Called before an item is extracted.<br>Arguments:
-    - `event`: Object - Represents an event that an entry is about to be extracted.
-        - `entryName`: String (readonly) - Entry name.
-        - `entryCount`: Number (readonly) - Total number of entries.
-        - `preventDefault()`: Function - Prevents the current entry from being extracted. By calling this method, you can control which items are extracted.
+> WARNING: On Windows, creating symbolic links may require administrator privileges, depending on system policy. If Windows Developer Mode is enabled, non-administrator processes can usually create symlinks as well. If `symlinkAsFileOnWindows` is `false` and the current process is not allowed to create symlinks, extraction may fail with `EPERM`.
 
+### Event: IEntryEvent
+
+```ts
+interface IEntryEvent {
+  readonly entryName: string;
+  readonly entryCount: number;
+  preventDefault(): void;
+}
+```
+
+- `entryName`: The current entry name.
+- `entryCount`: The total number of entries in the archive.
+- `preventDefault()`: Skips the current entry.
 # License
 Licensed under the [MIT](https://github.com/fpsqdb/zip-lib/blob/master/LICENSE) license.

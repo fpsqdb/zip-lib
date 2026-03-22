@@ -19,11 +19,12 @@ export interface IExtractOptions {
      *
      * If `true`, the symlink in the zip will be extracted as a normal file on Windows.
      *
-     * If `false`, the symlink in the zip will be extracted correctly as a symlink on Windows, but an `EPERM` error will be thrown for non-administrators.
+     * If `false`, the library will try to extract symlinks as real symlinks on Windows.
+     * This may fail with an `EPERM` error when the current process is not allowed to create symlinks.
      *
-     * > ⚠**WARNING:** On Windows, the default security policy allows only administrators to create symbolic links.
-     * If you set `symlinkAsFileOnWindows` to `false` and the zip contains symlink,
-     * be sure to run the code under the administrator, otherwise an `EPERM` error will be thrown.
+     * > ⚠**WARNING:** On Windows, creating symbolic links may require administrator privileges,
+     * depending on system policy. If Windows Developer Mode is enabled, non-administrator
+     * processes can usually create symlinks as well.
      */
     symlinkAsFileOnWindows?: boolean;
     /**

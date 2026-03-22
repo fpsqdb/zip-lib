@@ -40,70 +40,114 @@ You can use **zip-lib** to compress files or folders.
 
 ### Zip single file
 
-```js
-const zl = require("zip-lib");
+```ts
+import * as zl from "zip-lib";
 
-zl.archiveFile("path/to/file.txt", "path/to/target.zip").then(function () {
-    console.log("done");
-}, function (err) {
-    console.log(err);
-});
+async function zipToFile() {
+	try {
+		await zl.archiveFile("path/to/file.txt", "path/to/target.zip");
+		console.log("done");
+	} catch (error) {
+		console.error(error);
+	}
+}
+
+async function zipToBuffer() {
+	try {
+		const buffer = await zl.archiveFile("path/to/file.txt");
+		console.log("done", buffer.byteLength);
+	} catch (error) {
+		console.error(error);
+	}
+}
 ```
 
 ### Zip single folder
 
-```js
-const zl = require("zip-lib");
+```ts
+import * as zl from "zip-lib";
 
-zl.archiveFolder("path/to/folder", "path/to/target.zip").then(function () {
-    console.log("done");
-}, function (err) {
-    console.log(err);
-});
+async function zipToFile() {
+	try {
+		await zl.archiveFolder("path/to/folder", "path/to/target.zip");
+		console.log("done");
+	} catch (error) {
+		console.error(error);
+	}
+}
+
+async function zipToBuffer() {
+	try {
+		const buffer = await zl.archiveFolder("path/to/folder");
+		console.log("done", buffer.byteLength);
+	} catch (error) {
+		console.error(error);
+	}
+}
 ```
 
 ## Unzip
 
-```js
-const zl = require("zip-lib");
+```ts
+import * as zl from "zip-lib";
 
-zl.extract("path/to/target.zip", "path/to/target").then(function () {
-    console.log("done");
-}, function (err) {
-    console.log(err);
-});
+async function unzipFromFile() {
+	try {
+		await zl.extract("path/to/target.zip", "path/to/target");
+		console.log("done");
+	} catch (error) {
+		console.error(error);
+	}
+}
+
+async function unzipFromBuffer(zipBuffer: Buffer) {
+	try {
+		await zl.extract(zipBuffer, "path/to/target");
+		console.log("done");
+	} catch (error) {
+		console.error(error);
+	}
+}
 ```
 
 ## Advanced usage
 
 ### Sets the compression level
 
-```js
-const zl = require("zip-lib");
+```ts
+import * as zl from "zip-lib";
 
-zl.archiveFolder("path/to/folder", "path/to/target.zip", { compressionLevel: 9 }).then(function () {
-    console.log("done");
-}, function (err) {
-    console.log(err);
-});
+async function zipToFile() {
+	try {
+		await zl.archiveFolder("path/to/folder", "path/to/target.zip", {
+			compressionLevel: 9,
+		});
+		console.log("done");
+	} catch (error) {
+		console.error(error);
+	}
+}
 ```
 
 ### Zip multiple files and folders
 
-```js
-const zl = require("zip-lib");
+```ts
+import * as zl from "zip-lib";
 
-const zip = new zl.Zip();
-// Adds a file from the file system
-zip.addFile("path/to/file.txt");
-// Adds a folder from the file system, putting its contents at the root of archive
-zip.addFolder("path/to/folder");
-// Generate zip file.
-zip.archive("path/to/target.zip").then(function () {
-    console.log("done");
-}, function (err) {
-    console.log(err);
-});
+async function zipToFile() {
+	try {
+		const zip = new zl.Zip();
+		// Adds a file from the file system
+		zip.addFile("path/to/file.txt");
+		// Adds a folder from the file system, putting its contents at the root of archive
+		zip.addFolder("path/to/folder");
+		// Generate zip file.
+		await zip.archive("path/to/target.zip");
+		console.log("done");
+	} catch (error) {
+		console.error(error);
+	}
+}
 ```
 
 The `path/to/folder` directory is as follows:
@@ -131,21 +175,24 @@ path/to/target.zip
 
 ### Zip with metadata
 
-```js
-const zl = require("zip-lib");
+```ts
+import * as zl from "zip-lib";
 
-const zip = new zl.Zip();
-// Adds a file from the file system
-zip.addFile("path/to/file.txt", "renamedFile.txt");
-zip.addFile("path/to/file2.txt", "folder/file.txt");
-// Adds a folder from the file system, and naming it `new folder` within the archive
-zip.addFolder("path/to/folder", "new folder");
-// Generate zip file.
-zip.archive("path/to/target.zip").then(function () {
-    console.log("done");
-}, function (err) {
-    console.log(err);
-});
+async function zipToFile() {
+	try {
+		const zip = new zl.Zip();
+		// Adds a file from the file system
+		zip.addFile("path/to/file.txt", "renamedFile.txt");
+		zip.addFile("path/to/file2.txt", "folder/file.txt");
+		// Adds a folder from the file system, and naming it `new folder` within the archive
+		zip.addFolder("path/to/folder", "new folder");
+		// Generate zip file.
+		zip.archive("path/to/target.zip");
+		console.log("done");
+	} catch (error) {
+		console.error(error);
+	}
+}
 ```
 
 The `path/to/folder` directory is as follows:
@@ -177,85 +224,99 @@ path/to/target.zip
 ### Unzip with entry callback
 Using `onEntry` callback we can know the current progress of extracting and control the extraction operation. See [IExtractOptions](#iextractoptions).
 
-```js
-const zl = require("zip-lib");
+```ts
+import * as zl from "zip-lib";
 
-const unzip = new zl.Unzip({
-    // Called before an item is extracted.
-    onEntry: function (event) {
-        console.log(event.entryCount, event.entryName);
-    }
-})
-unzip.extract("path/to/target.zip", "path/to/target").then(function () {
-    console.log("done");
-}, function (err) {
-    console.log(err);
-});
+async function unzipFromFile() {
+	try {
+		const unzip = new zl.Unzip({
+			// Called before an item is extracted.
+			onEntry: (event) => {
+				console.log(event.entryCount, event.entryName);
+			},
+		});
+		await unzip.extract("path/to/target.zip", "path/to/target");
+		console.log("done");
+	} catch (error) {
+		console.error(error);
+	}
+}
 ```
 
 ### Unzip and exclude specified entries
 The following code shows how to exclude the `__MACOSX` folder in the zip file when extracting. See [IExtractOptions](#iextractoptions).
 
-```js
-const zl = require("zip-lib");
+```ts
+import * as zl from "zip-lib";
 
-const unzip = new zl.Unzip({
-    // Called before an item is extracted.
-    onEntry: function (event) {
-        if (/^__MACOSX\//.test(event.entryName)) {
-            // entry name starts with __MACOSX/
-            event.preventDefault();
-        }
-    }
-})
-unzip.extract("path/to/target.zip", "path/to/target").then(function () {
-    console.log("done");
-}, function (err) {
-    console.log(err);
-});
+async function unzipFromFile() {
+	try {
+		const unzip = new zl.Unzip({
+			// Called before an item is extracted.
+			onEntry: (event) => {
+				if (/^__MACOSX\//.test(event.entryName)) {
+					// entry name starts with __MACOSX/
+					event.preventDefault();
+				}
+			},
+		});
+		await unzip.extract("path/to/target.zip", "path/to/target");
+		console.log("done");
+	} catch (error) {
+		console.error(error);
+	}
+}
 ```
 
 ### Cancel zip
 If the `cancel` method is called after the archive is complete, nothing will happen.
 
-```js
-const zl = require("zip-lib");
+```ts
+import * as zl from "zip-lib";
 
 const zip = new zl.Zip();
-zip.addFile("path/to/file.txt");
-zip.archive("path/to/target.zip").then(function () {
-    console.log("done");
-}, function (err) {
-    if (err.name === "Canceled") {
-        console.log("cancel");
-    } else {
-        console.log(err);
-    }
-});
+async function zipToFile() {
+	try {
+		zip.addFile("path/to/file.txt");
+		await zip.archive("path/to/target.zip");
+		console.log("done");
+	} catch (error) {
+		if (error instanceof Error && error.name === "Canceled") {
+			console.log("cancel");
+		} else {
+			console.log(error);
+		}
+	}
+}
 
-// Cancel zip
-zip.cancel();
+function cancel() {
+	zip.cancel();
+}
 ```
 
 ### Cancel unzip
 If the `cancel` method is called after the extract is complete, nothing will happen.
 
-```js
-const zl = require("zip-lib");
+```ts
+import * as zl from "zip-lib";
 
 const unzip = new zl.Unzip();
-unzip.extract("path/to/target.zip", "path/to/target").then(function () {
-    console.log("done");
-}, function (err) {
-    if (err.name === "Canceled") {
-        console.log("cancel");
-    } else {
-        console.log(err);
-    }
-});
+async function unzipFromFile() {
+	try {
+		await unzip.extract("path/to/target.zip", "path/to/target");
+		console.log("done");
+	} catch (error) {
+		if (error instanceof Error && error.name === "Canceled") {
+			console.log("cancel");
+		} else {
+			console.log(error);
+		}
+	}
+}
 
-// cancel
-unzip.cancel();
+function cancel() {
+	unzip.cancel();
+}
 ```
 
 ## API
@@ -264,25 +325,43 @@ unzip.cancel();
 
 **archiveFile(file, zipFile, [options])**
 
-Compress a single file to zip.
+Compress a single file to specified zip file path.
 
 - `file`: String
 - `zipFile`: String
 - `options?`: [IZipOptions](#izipoptions) (optional)
 
-Returns: `Promise<viod>`
+Returns: `Promise<void>`
+
+**archiveFile(file, [options])**
+
+Compress a single file to buffer.
+
+- `file`: String
+- `options?`: [IZipOptions](#izipoptions) (optional)
+
+Returns: `Promise<Buffer>`
 
 ### Method: archiveFolder <a id="archivefolder"></a>
 
 **archiveFolder(folder, zipFile, [options])**
 
-Compress all the contents of the specified folder to zip.
+Compress all the contents of the specified folder to specified zip file path.
 
 - `folder`: String
 - `zipFile`: String
 - `options?`: [IZipOptions](#izipoptions) (optional)
 
 Returns: `Promise<void>`
+
+**archiveFolder(folder, [options])**
+
+Compress all the contents of the specified folder to buffer.
+
+- `folder`: String
+- `options?`: [IZipOptions](#izipoptions) (optional)
+
+Returns: `Promise<Buffer>`
 
 ### Method: extract <a id="extract"></a>
 
@@ -291,6 +370,16 @@ Returns: `Promise<void>`
 Extract the zip file to the specified location.
 
 - `zipFile`: String
+- `targetFolder`: String
+- `options?`: [IExtractOptions](#iextractoptions) (optional)
+
+Returns: `Promise<void>`
+
+**extract(zipBuffer, targetFolder, [options])**
+
+Extract the zip buffer to the specified location.
+
+- `zipBuffer`: Buffer
 - `targetFolder`: String
 - `options?`: [IExtractOptions](#iextractoptions) (optional)
 
@@ -323,11 +412,17 @@ Returns: `void`
 
 **Method: archive(zipFile)**
 
-Generate zip file.
+Zips the content and saves it directly to the specified file path.
 
 - `zipFile`: String
 
-Returns: `Promise<viod>`
+Returns: `Promise<void>`
+
+**Method: archive()**
+
+Zips the content to a single buffer.
+
+Returns: `Promise<Buffer>`
 
 **Method: cancel()**
 
@@ -347,6 +442,15 @@ Extract the zip file.
 Extract the zip file to the specified location.
 
 - `zipFile`: String
+- `targetFolder`: String
+
+Returns: `Promise<void>`
+
+**Method: extract(zipBuffer, targetFolder)**
+
+Extract the zip buffer to the specified location.
+
+- `zipBuffer`: Buffer
 - `targetFolder`: String
 
 Returns: `Promise<void>`

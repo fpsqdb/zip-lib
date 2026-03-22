@@ -1,6 +1,7 @@
 import { createReadStream, createWriteStream, type WriteStream } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import type { Writable } from "node:stream";
 import * as yazl from "yazl";
 import { Cancelable, CancellationToken } from "./cancelable";
 import * as exfs from "./fs";
@@ -49,6 +50,7 @@ export class Zip extends Cancelable {
     }
     private yazlFile: yazl.ZipFile;
     private isPipe: boolean = false;
+    private isChunk: boolean = false;
     private zipStream: WriteStream;
     private zipFiles: ZipFileEntry[];
     private zipFolders: ZipFolderEntry[];
@@ -85,42 +87,69 @@ export class Zip extends Cancelable {
     }
 
     /**
-     * Generate zip file.
-     * @param zipFile the zip file path.
+     * Zips the content and returns it as a single Buffer.
+     *
+     * @returns A promise that resolves to the zipped Buffer.
      */
-    public async archive(zipFile: string): Promise<void> {
-        if (!zipFile) {
-            return Promise.reject(new Error("zipPath must not be empty"));
-        }
+    public async archive(): Promise<Buffer>;
+    /**
+     * Zips the content and saves it directly to the specified file path.
+     *
+     * @param zipFile The absolute or relative path where the .zip file will be created.
+     * @returns A promise that resolves when the file has been fully written.
+     */
+    public async archive(zipFile: string): Promise<void>;
+    public async archive(zipFile?: string): Promise<void | Buffer> {
         const token = new CancellationToken();
         this.token = token;
         this.isPipe = false;
-        await exfs.ensureFolder(path.dirname(zipFile));
+        this.isChunk = false;
+        if (zipFile) {
+            await exfs.ensureFolder(path.dirname(zipFile));
+        }
         // Re-instantiate yazl every time the archive method is called to ensure that files are not added repeatedly.
         // This will also make the Zip class reusable.
         this.yazlFile = new yazl.ZipFile();
-        return new Promise<void>((c, e) => {
+        return new Promise<void | Buffer>((c, e) => {
             this.yazlFile.once("error", (err) => {
                 e(this.wrapError(err, token.isCancelled));
             });
             const zip = this.yazlFile;
             if (!token.isCancelled) {
-                this.zipStream = createWriteStream(zipFile);
-                this.zipStream.once("error", (err) => {
-                    e(this.wrapError(err, token.isCancelled));
-                });
-                this.zipStream.once("close", () => {
-                    if (token.isCancelled) {
-                        e(this.canceledError());
-                    } else {
-                        c(void 0);
-                    }
-                });
                 zip.outputStream.once("error", (err) => {
                     e(this.wrapError(err, token.isCancelled));
                 });
-                zip.outputStream.pipe(this.zipStream);
-                this.isPipe = true;
+                if (zipFile) {
+                    // archive to file.
+                    this.zipStream = createWriteStream(zipFile);
+                    this.zipStream.once("error", (err) => {
+                        e(this.wrapError(err, token.isCancelled));
+                    });
+                    this.zipStream.once("close", () => {
+                        if (token.isCancelled) {
+                            e(this.canceledError());
+                        } else {
+                            c(void 0);
+                        }
+                        this.isPipe = false;
+                    });
+                    zip.outputStream.pipe(this.zipStream);
+                    this.isPipe = true;
+                } else {
+                    // archive to buffer.
+                    const chunks: Buffer[] = [];
+                    zip.outputStream.on("data", (chunk: Buffer) => {
+                        chunks.push(chunk);
+                    });
+                    zip.outputStream.on("end", () => {
+                        const finalBuffer = Buffer.concat(chunks);
+                        c(finalBuffer);
+                    });
+                    zip.outputStream.on("error", (err) => {
+                        e(this.wrapError(err, token.isCancelled));
+                    });
+                    this.isChunk = true;
+                }
             }
             const start = async () => {
                 try {
@@ -151,7 +180,7 @@ export class Zip extends Cancelable {
             this.token.cancel();
             this.token = null;
         }
-        this.stopPipe(this.canceledError());
+        this.stop(this.canceledError());
     }
 
     private async addEntry(
@@ -193,7 +222,7 @@ export class Zip extends Cancelable {
             const fileStream = createReadStream(file.path);
             fileStream.once("error", (err) => {
                 const wrappedError = this.wrapError(err, token.isCancelled);
-                this.stopPipe(wrappedError);
+                this.stop(wrappedError);
                 e(wrappedError);
             });
             fileStream.once("close", () => {
@@ -246,11 +275,15 @@ export class Zip extends Cancelable {
         }
     }
 
-    private stopPipe(err: Error): void {
+    private stop(err: Error): void {
         if (this.isPipe) {
             this.yazlFile.outputStream.unpipe(this.zipStream);
             this.zipStream.destroy(err);
             this.isPipe = false;
+        }
+        if (this.isChunk) {
+            (this.yazlFile.outputStream as unknown as Writable).destroy(err);
+            this.isChunk = false;
         }
     }
 

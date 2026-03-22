@@ -216,15 +216,21 @@ export class Unzip extends Cancelable {
     }
 
     private zipFile: yauzl.ZipFile | null;
-
     private token: CancellationToken | null;
+
+    /**
+     * Extract the zip buffer to the specified location.
+     * @param zipBuffer
+     * @param targetFolder
+     */
+    public async extract(zipBuffer: Buffer, targetFolder: string): Promise<void>;
     /**
      * Extract the zip file to the specified location.
      * @param zipFile
      * @param targetFolder
-     * @param options
      */
-    public async extract(zipFile: string, targetFolder: string): Promise<void> {
+    public async extract(zipFile: string, targetFolder: string): Promise<void>;
+    public async extract(zipFileOrBuffer: string | Buffer, targetFolder: string): Promise<void> {
         let extractedEntriesCount: number = 0;
         const token = new CancellationToken();
         this.token = token;
@@ -236,7 +242,7 @@ export class Unzip extends Cancelable {
         }
         await exfs.ensureFolder(targetFolder);
         const realTargetFolder = await exfs.realpath(targetFolder);
-        const zfile = await this.openZip(zipFile, token);
+        const zfile = await this.openZip(zipFileOrBuffer, token);
         this.zipFile = zfile;
         zfile.readEntry();
         return new Promise<void>((c, e) => {
@@ -325,10 +331,29 @@ export class Unzip extends Cancelable {
         }
     }
 
-    private openZip(zipFile: string, token: CancellationToken): Promise<yauzl.ZipFile> {
+    private openZip(zipFileOrBuffer: string | Buffer, token: CancellationToken): Promise<yauzl.ZipFile> {
+        if (typeof zipFileOrBuffer === "string") {
+            return new Promise<yauzl.ZipFile>((c, e) => {
+                yauzl.open(
+                    zipFileOrBuffer,
+                    {
+                        lazyEntries: true,
+                        // see https://github.com/thejoshwolfe/yauzl/issues/84
+                        decodeStrings: false,
+                    },
+                    (err, zfile) => {
+                        if (err) {
+                            e(this.wrapError(err, token.isCancelled));
+                        } else {
+                            c(zfile);
+                        }
+                    },
+                );
+            });
+        }
         return new Promise<yauzl.ZipFile>((c, e) => {
-            yauzl.open(
-                zipFile,
+            yauzl.fromBuffer(
+                zipFileOrBuffer,
                 {
                     lazyEntries: true,
                     // see https://github.com/thejoshwolfe/yauzl/issues/84

@@ -111,7 +111,23 @@ export class Zip extends Cancelable {
         const zip = await this.prepareArchive(zipFile);
 
         return await new Promise<void | Buffer>((resolve, reject) => {
-            const settle = this.createPromiseSettler(resolve, reject);
+            let disposeCancel = () => {
+                // noop
+            };
+            const settle = this.createPromiseSettler(
+                (value) => {
+                    disposeCancel();
+                    resolve(value);
+                },
+                (error) => {
+                    disposeCancel();
+                    reject(error);
+                },
+            );
+            disposeCancel = token.onCancelled(() => {
+                this.stop(this.canceledError());
+                settle.reject(this.canceledError());
+            });
             this.bindArchiveOutput(zip, zipFile, token, settle);
 
             this.addQueuedEntries(zip, token)
@@ -296,12 +312,17 @@ export class Zip extends Cancelable {
     ): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             const fileStream = createReadStream(file.path);
+            const disposeCancel = token.onCancelled(() => {
+                fileStream.destroy(this.canceledError());
+            });
             fileStream.once("error", (err) => {
+                disposeCancel();
                 const wrappedError = this.wrapError(err, token.isCancelled);
                 this.stop(wrappedError);
                 reject(wrappedError);
             });
             fileStream.once("close", () => {
+                disposeCancel();
                 resolve();
             });
 

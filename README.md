@@ -1,5 +1,5 @@
 # zip-lib
-zip and unzip library for node.
+A zip and unzip library for Node.js.
 
 [![npm Package](https://img.shields.io/npm/v/zip-lib.svg)](https://www.npmjs.org/package/zip-lib)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fpsqdb/zip-lib/blob/master/LICENSE)
@@ -112,7 +112,7 @@ async function unzipFromBuffer(zipBuffer: Buffer) {
 
 ## Advanced usage
 
-### Sets the compression level
+### Set the compression level
 
 ```ts
 import * as zl from "zip-lib";
@@ -139,9 +139,9 @@ async function zipToFile() {
 		const zip = new zl.Zip();
 		// Adds a file from the file system
 		zip.addFile("path/to/file.txt");
-		// Adds a folder from the file system, putting its contents at the root of archive
+		// Adds a folder from the file system, putting its contents at the root of the archive
 		zip.addFolder("path/to/folder");
-		// Generate zip file.
+		// Generate the zip file.
 		await zip.archive("path/to/target.zip");
 		console.log("done");
 	} catch (error) {
@@ -161,7 +161,7 @@ path/to/folder
 └── file_in_root.ext
 ```
 
-And the generated `path/to/target.zip` archive file directory will be as follows:
+And the contents of the generated `path/to/target.zip` archive will be as follows:
 
 ```
 path/to/target.zip
@@ -184,9 +184,9 @@ async function zipToFile() {
 		// Adds a file from the file system
 		zip.addFile("path/to/file.txt", "renamedFile.txt");
 		zip.addFile("path/to/file2.txt", "folder/file.txt");
-		// Adds a folder from the file system, and naming it `new folder` within the archive
+		// Adds a folder from the file system and names it `new folder` within the archive
 		zip.addFolder("path/to/folder", "new folder");
-		// Generate zip file.
+		// Generate the zip file.
 		zip.archive("path/to/target.zip");
 		console.log("done");
 	} catch (error) {
@@ -206,7 +206,7 @@ path/to/folder
 └── file_in_root.ext
 ```
 
-And the generated `path/to/target.zip` archive file directory will be as follows:
+And the contents of the generated `path/to/target.zip` archive will be as follows:
 
 ```
 path/to/target.zip
@@ -214,7 +214,7 @@ path/to/target.zip
 ├── renamedFile.txt
 ├── folder
 │   ├── file.txt
-│── new folder
+├── new folder
     ├── dir1
     │   ├── file.ext
     ├── dir2
@@ -222,7 +222,7 @@ path/to/target.zip
 ```
 
 ### Unzip with entry callback
-Using `onEntry` callback we can know the current progress of extracting and control the extraction operation. See [IExtractOptions](#iextractoptions).
+Using the `onEntry` callback, we can track extraction progress and control the extraction process. See [IExtractOptions](#iextractoptions).
 
 ```ts
 import * as zl from "zip-lib";
@@ -325,7 +325,7 @@ function cancel() {
 
 **archiveFile(file, zipFile, [options])**
 
-Compress a single file to specified zip file path.
+Compress a single file to the specified zip file path.
 
 - `file`: String
 - `zipFile`: String
@@ -335,7 +335,7 @@ Returns: `Promise<void>`
 
 **archiveFile(file, [options])**
 
-Compress a single file to buffer.
+Compress a single file to a buffer.
 
 - `file`: String
 - `options?`: [IZipOptions](#izipoptions) (optional)
@@ -346,7 +346,7 @@ Returns: `Promise<Buffer>`
 
 **archiveFolder(folder, zipFile, [options])**
 
-Compress all the contents of the specified folder to specified zip file path.
+Compress all the contents of the specified folder to the specified zip file path.
 
 - `folder`: String
 - `zipFile`: String
@@ -356,7 +356,7 @@ Returns: `Promise<void>`
 
 **archiveFolder(folder, [options])**
 
-Compress all the contents of the specified folder to buffer.
+Compress all the contents of the specified folder to a buffer.
 
 - `folder`: String
 - `options?`: [IZipOptions](#izipoptions) (optional)
@@ -367,7 +367,7 @@ Returns: `Promise<Buffer>`
 
 **extract(zipFile, targetFolder, [options])**
 
-Extract the zip file to the specified location.
+Extract a zip file to the specified location.
 
 - `zipFile`: String
 - `targetFolder`: String
@@ -386,7 +386,7 @@ Extract the zip buffer to the specified location.
 Returns: `Promise<void>`
 
 ### Class: Zip<a id="class-zip"></a>
-Compress files or folders to a zip file.
+Compress files or folders into a zip file.
 
 **Constructor: new Zip([options])**
 
@@ -394,16 +394,16 @@ Compress files or folders to a zip file.
 
 **Method: addFile(file, [metadataPath])**
 
-Adds a file from the file system at realPath into the zipfile as metadataPath.
+Adds a file from the file system at `realPath` to the zip file as `metadataPath`.
 
 - `file`: String
-- `metadataPath?`: String (optional) - Typically metadataPath would be calculated as path.relative(root, realPath). A valid metadataPath must not start with `/` or `/[A-Za-z]:\//`, and must not contain `..`.
+- `metadataPath?`: String (optional) - Typically, `metadataPath` would be calculated as `path.relative(root, realPath)`. A valid `metadataPath` must not start with `/` or `/[A-Za-z]:\//`, and must not contain `..`.
 
 Returns: `void`
 
 **Method: addFolder(folder, [metadataPath])**
 
-Adds a folder from the file system at realPath into the zipfile as metadataPath.
+Adds a folder from the file system at `realPath` to the zip file as `metadataPath`.
 
 - `folder`: String
 - `metadataPath?`: String (optional) - Typically metadataPath would be calculated as path.relative(root, realPath). A valid metadataPath must not start with `/` or `/[A-Za-z]:\//`, and must not contain `..`.
@@ -431,11 +431,11 @@ Cancel compression. If the `cancel` method is called after the archive is comple
 Returns: `void`
 
 ### Class: Unzip<a id="class-unzip"></a>
-Extract the zip file.
+Extract a zip file.
 
 **Constructor: new Unzip([options])**
 
-- `options?`: [IZipOptions](#izipoptions) (optional)
+- `options?`: [IExtractOptions](#iextractoptions) (optional)
 
 **Method: extract(zipFile, targetFolder)**
 
@@ -470,17 +470,17 @@ Object
 ### Options: IExtractOptions <a id="iextractoptions"></a>
 
 Object
-- `overwrite?`: Boolean (optional) - If it is true, the target directory will be deleted before extract. The default value is `false`.
-- `safeSymlinksOnly`: Boolean (optional) - Controls the creation phase of symlinks. The default value is `false`.<br>`true`: Refuses to create any symlink whose target is outside the extraction root.<br>`false`: Allows creating external symlinks. **Note:** Subsequent write operations to these links will still be intercepted by the separate AFWRITE security layer.
+- `overwrite?`: Boolean (optional) - If it is `true`, the target directory will be deleted before extraction. The default value is `false`.
+- `safeSymlinksOnly?`: Boolean (optional) - Controls the creation phase of symlinks. The default value is `false`.<br>`true`: Refuses to create any symlink whose target is outside the extraction root.<br>`false`: Allows creating external symlinks. **Note:** Subsequent write operations to these links will still be intercepted by the separate AFWRITE security layer.
 - `symlinkAsFileOnWindows?`: Boolean (optional) - Extract symbolic links as files on Windows. This value is only available on Windows and ignored on other platforms. The default value is `true`.<br>If `true`, the symlink in the zip will be extracted as a normal file on Windows.<br>If `false`, the symlink in the zip will be extracted as a symlink correctly on Windows, but an `EPERM` error will be thrown under non-administrators.
 
-    > ⚠**WARNING:** On Windows, the default security policy allows only administrators to create symbolic links. If you set `symlinkAsFileOnWindows` to `false` and the zip contains symlink, be sure to run the code under the administrator, otherwise an `EPERM` error will be thrown.
+    > ⚠**WARNING:** On Windows, the default security policy allows only administrators to create symbolic links. If you set `symlinkAsFileOnWindows` to `false` and the zip contains symlink, be sure to run the code as an administrator; otherwise, an `EPERM` error will be thrown.
 
 - `onEntry?`: Function (optional) - Called before an item is extracted.<br>Arguments:
     - `event`: Object - Represents an event that an entry is about to be extracted.
         - `entryName`: String (readonly) - Entry name.
         - `entryCount`: Number (readonly) - Total number of entries.
-        - `preventDefault()`: Function - Prevent extracting current entry. This method can be used to prevent extraction of the current item. By calling this method we can control which items can be extracted.
+        - `preventDefault()`: Function - Prevents the current entry from being extracted. By calling this method, you can control which items are extracted.
 
 # License
 Licensed under the [MIT](https://github.com/fpsqdb/zip-lib/blob/master/LICENSE) license.

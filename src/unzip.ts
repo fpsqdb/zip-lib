@@ -9,17 +9,17 @@ import * as exfs from "./fs";
 
 export interface IExtractOptions {
     /**
-     * If it is `true`, the target directory will be deleted before extract.
+     * If it is `true`, the target directory will be deleted before extraction.
      * The default value is `false`.
      */
     overwrite?: boolean;
     /**
-     * Extract symbolic links as files on Windows. This value is only available on Windows and ignored on other platforms.
+     * Extracts symbolic links as files on Windows. This value is only available on Windows and is ignored on other platforms.
      * The default value is `true`.
      *
      * If `true`, the symlink in the zip will be extracted as a normal file on Windows.
      *
-     * If `false`, the symlink in the zip will be extracted as a symlink correctly on Windows, but an `EPERM` error will be thrown under non-administrators.
+     * If `false`, the symlink in the zip will be extracted correctly as a symlink on Windows, but an `EPERM` error will be thrown for non-administrators.
      *
      * > ⚠**WARNING:** On Windows, the default security policy allows only administrators to create symbolic links.
      * If you set `symlinkAsFileOnWindows` to `false` and the zip contains symlink,
@@ -45,7 +45,7 @@ export interface IExtractOptions {
 }
 
 /**
- * The IEntryEvent interface represents an event that an entry is about to be extracted.
+ * Represents an event fired before an entry is extracted.
  */
 export interface IEntryEvent {
     /**
@@ -57,7 +57,7 @@ export interface IEntryEvent {
      */
     readonly entryCount: number;
     /**
-     * Prevent extracting current entry.
+     * Prevents the current entry from being extracted.
      */
     preventDefault(): void;
 }
@@ -104,18 +104,18 @@ interface IEntryContext {
      */
     readonly realTargetFolder: string;
     /**
-     * The name of the symlink file that has been processed.
+     * The names of symlink files that have been processed.
      */
     readonly symlinkFileNames: string[];
     getFilePath(): string;
     /**
-     * Whether the symlink target path is outside the target folder
+     * Whether the symlink target path is outside the target folder.
      * @param linkTarget
      * @param linkFilePath
      */
     isSymlinkTargetOutsideTargetFolder(linkTarget: string, linkFilePath: string): boolean;
     /**
-     * Whether the specified path is outside the target folder
+     * Whether the specified path is outside the target folder.
      * @param tpath
      */
     isOutsideTargetFolder(tpath: string): Promise<boolean>;
@@ -372,7 +372,7 @@ export class Unzip extends Cancelable {
         const rawName = (entry.fileName as unknown as Buffer).toString("utf8");
         // allow backslash
         const fileName = rawName.replace(/\\/g, "/");
-        // Because decodeStrings is false, we need to manually verify the entryname
+        // Because decodeStrings is false, we need to manually verify the entry name
         // see https://github.com/thejoshwolfe/yauzl#validatefilenamefilename
         const errorMessage = yauzl.validateFileName(fileName);
         if (errorMessage != null) {
@@ -393,7 +393,7 @@ export class Unzip extends Cancelable {
     }
 
     /**
-     * Cancel decompression.
+     * Cancel extraction.
      * If the cancel method is called after the extract is complete, nothing will happen.
      */
     public cancel(): void {
@@ -447,7 +447,7 @@ export class Unzip extends Cancelable {
     ): Promise<void> {
         if (/\/$/.test(entryContext.decodeEntryFileName)) {
             // Directory file names end with '/'.
-            // Note that entires for directories themselves are optional.
+            // Note that entries for directories themselves are optional.
             // An entry's fileName implicitly requires its parent directories to exist.
             await exfs.ensureFolder(entryContext.getFilePath());
             zfile.readEntry();

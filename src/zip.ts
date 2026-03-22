@@ -23,11 +23,11 @@ type ArchiveSettler = {
 
 export interface IZipOptions {
     /**
-     * Indicates how to handle when the given path is a symbolic link.
+     * Indicates how to handle the given path when it is a symbolic link.
      *
      * `true`: add the target of the symbolic link to the zip.
      *
-     * `false`: add symbolic link itself to the zip.
+     * `false`: add the symbolic link itself to the zip.
      *
      * The default value is `false`.
      */
@@ -35,7 +35,7 @@ export interface IZipOptions {
     /**
      * Sets the compression level.
      *
-     * 0: the file data will be stored, otherwise, the file data will be deflated.
+     * `0`: the file data will be stored; otherwise, the file data will be deflated.
      *
      * The default value is `6`.
      */
@@ -63,9 +63,9 @@ export class Zip extends Cancelable {
 
     private token: CancellationToken | null;
     /**
-     * Adds a file from the file system at realPath into the zipfile as metadataPath.
+     * Adds a file from the file system at `realPath` to the zip file as `metadataPath`.
      * @param file
-     * @param metadataPath Typically metadataPath would be calculated as path.relative(root, realPath).
+     * @param metadataPath Typically, `metadataPath` would be calculated as `path.relative(root, realPath)`.
      * A valid metadataPath must not start with "/" or /[A-Za-z]:\//, and must not contain "..".
      */
     public addFile(file: string, metadataPath?: string): void {
@@ -80,9 +80,9 @@ export class Zip extends Cancelable {
     }
 
     /**
-     * Adds a folder from the file system at realPath into the zipfile as metadataPath.
+     * Adds a folder from the file system at `realPath` to the zip file as `metadataPath`.
      * @param folder
-     * @param metadataPath Typically metadataPath would be calculated as path.relative(root, realPath).
+     * @param metadataPath Typically, `metadataPath` would be calculated as `path.relative(root, realPath)`.
      * A valid metadataPath must not start with "/" or /[A-Za-z]:\//, and must not contain "..".
      */
     public addFolder(folder: string, metadataPath?: string): void {

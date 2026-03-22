@@ -5,13 +5,13 @@ export * from "./unzip";
 export * from "./zip";
 
 /**
- * Compress a single file to buffer.
+ * Compress a single file to a buffer.
  * @param file
  * @param options
  */
 export function archiveFile(file: string, options?: IZipOptions): Promise<Buffer>;
 /**
- * Compress a single file to specified zip file path.
+ * Compress a single file to the specified zip file path.
  * @param file
  * @param zipFile the zip file path.
  * @param options
@@ -37,13 +37,13 @@ export function archiveFile(
 }
 
 /**
- * Compress all the contents of the specified folder to buffer.
+ * Compress all the contents of the specified folder to a buffer.
  * @param folder
  * @param options
  */
 export function archiveFolder(folder: string, options?: IZipOptions): Promise<Buffer>;
 /**
- * Compress all the contents of the specified folder to specified zip file path.
+ * Compress all the contents of the specified folder to the specified zip file path.
  * @param folder
  * @param zipFile the zip file path.
  * @param options

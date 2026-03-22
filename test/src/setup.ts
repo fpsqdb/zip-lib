@@ -2,6 +2,22 @@ import fs from "node:fs";
 import path from "node:path";
 import * as rimraf from "rimraf";
 
+function ensureSymlink(linkPath: string, target: string, type?: "dir" | "file" | "junction"): void {
+    if (fs.existsSync(linkPath)) {
+        const stat = fs.lstatSync(linkPath);
+        if (stat.isSymbolicLink()) {
+            return;
+        }
+        if (stat.isDirectory()) {
+            rimraf.sync(linkPath);
+        } else {
+            fs.unlinkSync(linkPath);
+        }
+    }
+
+    fs.symlinkSync(target, linkPath, type);
+}
+
 export function setup() {
     const folder1 = path.join(__dirname, "../resources/name with space");
     if (!fs.existsSync(folder1)) {
@@ -19,52 +35,8 @@ export function setup() {
     }
 
     const fileSymlinkPath = path.join(__dirname, "../resources/symlink");
-    let shouldCreateFileLink = true;
-    if (fs.existsSync(fileSymlinkPath)) {
-        const stat = fs.lstatSync(fileSymlinkPath);
-        if (!stat.isSymbolicLink()) {
-            fs.unlinkSync(fileSymlinkPath);
-        } else {
-            shouldCreateFileLink = false;
-        }
-    }
-
-    if (shouldCreateFileLink) {
-        try {
-            fs.symlinkSync("./¹ º » ¼ ½ ¾.txt", fileSymlinkPath);
-        } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                // On windows, the default security policy allows only administrators to create symbolic links.
-                // ignore EPERM on windows
-                console.warn("If you want to test symlink under windows, run the test with administrator privileges.");
-            } else {
-                throw error;
-            }
-        }
-    }
+    ensureSymlink(fileSymlinkPath, "./¹ º » ¼ ½ ¾.txt", "file");
 
     const folderSymlinkPath = path.join(__dirname, "../resources/subfolder_symlink");
-    let shouldCreateFolderLink = true;
-    if (fs.existsSync(folderSymlinkPath)) {
-        const stat = fs.lstatSync(folderSymlinkPath);
-        if (!stat.isSymbolicLink()) {
-            rimraf.sync(folderSymlinkPath);
-        } else {
-            shouldCreateFolderLink = false;
-        }
-    }
-
-    if (shouldCreateFolderLink) {
-        try {
-            fs.symlinkSync("./subfolder", folderSymlinkPath, "dir");
-        } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                // On windows, the default security policy allows only administrators to create symbolic links.
-                // ignore EPERM on windows
-                console.warn("If you want to test symlink under windows, run the test with administrator privileges.");
-            } else {
-                throw error;
-            }
-        }
-    }
+    ensureSymlink(folderSymlinkPath, "./subfolder", "dir");
 }

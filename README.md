@@ -1,5 +1,5 @@
 # zip-lib
-A zip and unzip library for Node.js.
+A zip and unzip library for Node.js with promise-based APIs, support for compressing to `Buffer` or extracting from `Buffer`, and advanced features like entry filtering, cancellation, and symlink-aware handling.
 
 [![npm Package](https://img.shields.io/npm/v/zip-lib.svg)](https://www.npmjs.org/package/zip-lib)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fpsqdb/zip-lib/blob/master/LICENSE)

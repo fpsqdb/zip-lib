@@ -119,6 +119,7 @@ interface IEntryContext {
      * @param tpath
      */
     isOutsideTargetFolder(tpath: string): Promise<boolean>;
+    inspectFolder(folder: string): Promise<void>;
     ensureFolder(folder: string): Promise<void>;
 }
 
@@ -130,6 +131,7 @@ class EntryContext implements IEntryContext {
     ) {
         this._symlinkFileNames = [];
         this._symlinkFolders = [];
+        this._inspectedFolders = [];
         this._ensuredFolders = [];
     }
     private _decodeEntryFileName: string;
@@ -150,6 +152,7 @@ class EntryContext implements IEntryContext {
         return this._symlinkFileNames;
     }
     private _symlinkFolders: { folder: string; realpath: string }[];
+    private _inspectedFolders: string[];
     private _ensuredFolders: string[];
 
     private addSymlinkFolder(folder: string, realpath: string): void {
@@ -163,10 +166,30 @@ class EntryContext implements IEntryContext {
         return path.resolve(path.join(this.targetFolder, this.decodeEntryFileName));
     }
 
+    public async inspectFolder(folder: string): Promise<void> {
+        if (this._inspectedFolders.includes(folder) || folder === path.dirname(folder)) {
+            return;
+        }
+
+        await this.inspectFolder(path.dirname(folder));
+
+        const folderStat = await exfs.statFolder(folder);
+        if (!folderStat) {
+            return;
+        }
+        if (folderStat.isSymbolicLink) {
+            this.addSymlinkFolder(folder, folderStat.realpath);
+        }
+        this._inspectedFolders.push(folder);
+    }
+
     public async ensureFolder(folder: string): Promise<void> {
         if (this._ensuredFolders.includes(folder)) {
             return;
         }
+
+        await this.inspectFolder(path.dirname(folder));
+
         const folderStat = await exfs.ensureFolder(folder);
         if (folderStat.isSymbolicLink) {
             this.addSymlinkFolder(folder, folderStat.realpath);
@@ -454,7 +477,7 @@ export class Unzip extends Cancelable {
     ): Promise<void> {
         const filePath = entryContext.getFilePath();
         const fileDir = path.dirname(filePath);
-        await entryContext.ensureFolder(fileDir);
+        await entryContext.inspectFolder(fileDir);
         const outside = await entryContext.isOutsideTargetFolder(fileDir);
         if (outside) {
             const error = new Error(`Refuse to write file outside "${entryContext.targetFolder}", file: "${filePath}"`);
@@ -496,8 +519,10 @@ export class Unzip extends Cancelable {
                     throw error;
                 }
 
+                await entryContext.ensureFolder(path.dirname(filePath));
                 await this.createSymlink(linkContent, filePath);
             } else {
+                await entryContext.ensureFolder(path.dirname(filePath));
                 const fileStream = createWriteStream(filePath, { mode });
                 const pipelinePromise = pipeline(readStream, fileStream);
 

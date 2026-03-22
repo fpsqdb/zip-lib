@@ -122,6 +122,17 @@ export async function pathExists(target: string): Promise<boolean> {
     }
 }
 
+export async function statFolder(folder: string): Promise<FolderStat | undefined> {
+    try {
+        return await statExistingFolder(folder);
+    } catch (error) {
+        if (error.code === "ENOENT") {
+            return undefined;
+        }
+        throw error;
+    }
+}
+
 export async function rimraf(target: string): Promise<void> {
     if (isRootPath(target)) {
         // refuse to recursively delete root

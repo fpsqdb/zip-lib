@@ -5,7 +5,7 @@ import * as zl from "../../src";
 import * as fs from "../../src/fs";
 
 describe("unzip, safeSymlinksOnly=false", () => {
-    it("extract a zip file that attempt to write file outside output folder, case 1", async () => {
+    it("extract a zip file that attempt to write file outside output folder, case 1, safeSymlinksOnly=false", async () => {
         try {
             await zl.extract(
                 path.join(__dirname, "../unzipResources/arbitrary_file_write.zip"),
@@ -15,7 +15,7 @@ describe("unzip, safeSymlinksOnly=false", () => {
                     symlinkAsFileOnWindows: false,
                 },
             );
-            assert.fail("extract a zip file that attempt to write file outside output folder");
+            assert.fail("extract a zip file that attempt to write file outside output folder, case 1, safeSymlinksOnly=false");
         } catch (error) {
             if (process.platform === "win32" && error.code === "EPERM") {
                 console.warn("Please run this test with administrator.");
@@ -27,7 +27,7 @@ describe("unzip, safeSymlinksOnly=false", () => {
             }
         }
     });
-    it("extract a zip file that attempt to write file outside output folder, case 2", async () => {
+    it("extract a zip file that attempt to write file outside output folder, case 2, safeSymlinksOnly=false", async () => {
         try {
             await zl.extract(
                 path.join(__dirname, "../unzipResources/arbitrary_file_write2.zip"),
@@ -37,7 +37,7 @@ describe("unzip, safeSymlinksOnly=false", () => {
                     symlinkAsFileOnWindows: false,
                 },
             );
-            assert.fail("extract a zip file that attempt to write file outside output folder");
+            assert.fail("extract a zip file that attempt to write file outside output folder, case 2, safeSymlinksOnly=false");
         } catch (error) {
             if (process.platform === "win32" && error.code === "EPERM") {
                 console.warn("Please run this test with administrator.");
@@ -49,7 +49,7 @@ describe("unzip, safeSymlinksOnly=false", () => {
             }
         }
     });
-    it("extract a zip file that attempt to write file to symlink folder which is outside output folder", async () => {
+    it("extract a zip file that attempt to write file to symlink folder which is outside output folder, safeSymlinksOnly=false", async () => {
         try {
             await fs.rimraf(path.join(__dirname, "../unzips/arbitrary_write/output"));
             await fs.rimraf(path.join(__dirname, "../unzips/arbitrary_write/tmp"));
@@ -139,7 +139,7 @@ describe("unzip, safeSymlinksOnly=true", () => {
                     symlinkAsFileOnWindows: false,
                 },
             );
-            assert.fail("extract a zip file that attempt to write file outside output folder");
+            assert.fail("extract a zip file that attempt to write file outside output folder, case 1, safeSymlinksOnly=true");
         } catch (error) {
             if (process.platform === "win32" && error.code === "EPERM") {
                 console.warn("Please run this test with administrator.");
@@ -162,7 +162,7 @@ describe("unzip, safeSymlinksOnly=true", () => {
                     symlinkAsFileOnWindows: false,
                 },
             );
-            assert.fail("extract a zip file that attempt to write file outside output folder");
+            assert.fail("extract a zip file that attempt to write file outside output folder, case 2, safeSymlinksOnly=true");
         } catch (error) {
             if (process.platform === "win32" && error.code === "EPERM") {
                 console.warn("Please run this test with administrator.");

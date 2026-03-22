@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  test:
     if: github.repository == 'fpsqdb/zip-lib'
     runs-on: ubuntu-latest
     steps:
@@ -26,7 +26,7 @@ jobs:
       - run: npm test
 
   publish-npm:
-    needs: build
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -513,7 +513,7 @@ export class Unzip extends Cancelable {
                     entryContext.isSymlinkTargetOutsideTargetFolder(linkContent, filePath)
                 ) {
                     const error = new Error(
-                        `Dangerous link path was refused : "${entryContext.targetFolder}", file: "${filePath}", target: "${linkContent}"`,
+                        `Dangerous link path was refused : "${entryContext.targetFolder}", file: "${filePath}", target: "${linkContent}". Set safeSymlinksOnly to false to allow writing through this symlink.`,
                     );
                     error.name = "AF_ILLEGAL_TARGET";
                     throw error;

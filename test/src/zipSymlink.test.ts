@@ -1,9 +1,27 @@
-import * as assert from "node:assert";
 import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import * as zl from "../../src";
+
+async function allowWindowsSymlinkPermissionError(action: () => Promise<void>): Promise<boolean> {
+    try {
+        await action();
+        return false;
+    } catch (error) {
+        if (
+            process.platform === "win32" &&
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            error.code === "EPERM"
+        ) {
+            console.warn("Please run this test with administrator.");
+            return true;
+        }
+        throw error;
+    }
+}
 
 describe("zip", () => {
     it("zip symlink (followSymlinks = false)", async () => {
@@ -20,42 +38,25 @@ describe("zip", () => {
             }
         }
         const zipFile = path.join(__dirname, "../zips/resources_allow_symlink.zip");
-        try {
-            await zl.archiveFolder(path.join(__dirname, "../resources"), zipFile);
-        } catch (error) {
-            assert.fail(error);
-        }
-        try {
-            const des = path.join(__dirname, "../unzips/resources_allow_symlink");
+        await zl.archiveFolder(path.join(__dirname, "../resources"), zipFile);
+
+        const des = path.join(__dirname, "../unzips/resources_allow_symlink");
+        const skipped = await allowWindowsSymlinkPermissionError(async () => {
             await zl.extract(zipFile, des, {
                 overwrite: true,
                 symlinkAsFileOnWindows: false,
             });
-            let passed = false;
-            const stat1 = await fs.lstat(path.join(des, "symlink"));
-            if (stat1.isSymbolicLink()) {
-                passed = true;
-            } else {
-                assert.fail(`${path.join(des, "symlink")} is not a symlink`);
-            }
-            const stat2 = await fs.lstat(path.join(des, "subfolder_symlink"));
-            if (stat2.isSymbolicLink()) {
-                passed = true;
-            } else {
-                assert.fail(`${path.join(des, "subfolder_symlink")} is not a symlink`);
-            }
-            if (passed) {
-                assert.ok(true, "zip symlink (followSymlinks = false)");
-            }
-        } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                console.warn("Please run this test with administrator.");
-                assert.ok(true, "Please run this test with administrator.");
-            } else {
-                assert.fail(error);
-            }
+        });
+        if (skipped) {
+            return;
         }
+
+        const stat1 = await fs.lstat(path.join(des, "symlink"));
+        const stat2 = await fs.lstat(path.join(des, "subfolder_symlink"));
+        expect(stat1.isSymbolicLink(), `${path.join(des, "symlink")} is not a symlink`).toBe(true);
+        expect(stat2.isSymbolicLink(), `${path.join(des, "subfolder_symlink")} is not a symlink`).toBe(true);
     });
+
     it("zip symlink (followSymlinks = true)", async () => {
         const source1 = path.join(__dirname, "../resources/symlink");
         const source2 = path.join(__dirname, "../resources/subfolder_symlink");
@@ -70,36 +71,17 @@ describe("zip", () => {
             }
         }
         const zipFile = path.join(__dirname, "../zips/resources_disallow_symlink.zip");
-        try {
-            await zl.archiveFolder(path.join(__dirname, "../resources"), zipFile, {
-                followSymlinks: true,
-            });
-        } catch (error) {
-            assert.fail(error);
-        }
-        try {
-            const des = path.join(__dirname, "../unzips/resources_disallow_symlink");
-            await zl.extract(zipFile, des, {
-                overwrite: true,
-            });
-            let passed = false;
-            const stat1 = await fs.lstat(path.join(des, "symlink"));
-            if (stat1.isSymbolicLink()) {
-                assert.fail(`${path.join(des, "symlink")} is a symlink`);
-            } else {
-                passed = true;
-            }
-            const stat2 = await fs.lstat(path.join(des, "subfolder_symlink"));
-            if (stat2.isSymbolicLink()) {
-                assert.fail(`${path.join(des, "subfolder_symlink")} is a symlink`);
-            } else {
-                passed = true;
-            }
-            if (passed) {
-                assert.ok(true, "zip symlink (followSymlinks = true)");
-            }
-        } catch (error) {
-            assert.fail(error);
-        }
+        await zl.archiveFolder(path.join(__dirname, "../resources"), zipFile, {
+            followSymlinks: true,
+        });
+
+        const des = path.join(__dirname, "../unzips/resources_disallow_symlink");
+        await zl.extract(zipFile, des, {
+            overwrite: true,
+        });
+        const stat1 = await fs.lstat(path.join(des, "symlink"));
+        const stat2 = await fs.lstat(path.join(des, "subfolder_symlink"));
+        expect(stat1.isSymbolicLink(), `${path.join(des, "symlink")} is a symlink`).toBe(false);
+        expect(stat2.isSymbolicLink(), `${path.join(des, "subfolder_symlink")} is a symlink`).toBe(false);
     });
 });

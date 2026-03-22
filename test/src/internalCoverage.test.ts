@@ -1,6 +1,5 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: <any> */
-import * as assert from "node:assert";
-import { describe, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as zl from "../../src";
 import { CancellationToken } from "../../src/cancelable";
 import * as exfs from "../../src/fs";
@@ -9,17 +8,15 @@ describe("internal coverage", () => {
     it("rejects invalid unzip entry names", async () => {
         const unzip = new zl.Unzip();
 
-        await assert.rejects(
-            async () =>
-                await (unzip as any).handleZipEntry(
-                    {},
-                    { fileName: Buffer.from("../evil.txt") },
-                    {},
-                    {},
-                    new CancellationToken(),
-                ),
-            /invalid/i,
-        );
+        await expect(
+            (unzip as any).handleZipEntry(
+                {},
+                { fileName: Buffer.from("../evil.txt") },
+                {},
+                {},
+                new CancellationToken(),
+            ),
+        ).rejects.toThrow(/invalid/i);
     });
 
     it("ignores repeated unzip settler calls", () => {
@@ -40,8 +37,8 @@ describe("internal coverage", () => {
         resolveSettler.resolve();
         resolveSettler.reject(new Error("late reject"));
 
-        assert.equal(resolved, 1);
-        assert.equal(rejected, 0);
+        expect(resolved).toBe(1);
+        expect(rejected).toBe(0);
 
         const rejectSettler = (unzip as any).createPromiseSettler(
             () => {
@@ -56,8 +53,8 @@ describe("internal coverage", () => {
         rejectSettler.reject(new Error("second reject"));
         rejectSettler.resolve();
 
-        assert.equal(resolved, 1);
-        assert.equal(rejected, 1);
+        expect(resolved).toBe(1);
+        expect(rejected).toBe(1);
     });
 
     it("stops walking folders when zip is already canceled", async () => {
@@ -68,7 +65,7 @@ describe("internal coverage", () => {
         token.cancel();
         await (zip as any).walkDir({}, [{ path: "ignored" }], token);
 
-        assert.equal(readdirSpy.mock.calls.length, 0);
+        expect(readdirSpy).not.toHaveBeenCalled();
         readdirSpy.mockRestore();
     });
 
@@ -85,7 +82,7 @@ describe("internal coverage", () => {
 
         await (zip as any).walkDir({}, [{ path: "folder", metadataPath: undefined }], token);
 
-        assert.equal(addEntrySpy.mock.calls.length, 1);
+        expect(addEntrySpy).toHaveBeenCalledTimes(1);
         readdirSpy.mockRestore();
         addEntrySpy.mockRestore();
     });

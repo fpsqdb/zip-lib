@@ -1,5 +1,4 @@
-import * as assert from "node:assert";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { CancellationToken } from "../../src/cancelable";
 
 describe("cancelable", () => {
@@ -14,7 +13,7 @@ describe("cancelable", () => {
 
         dispose();
 
-        assert.equal(called, 1);
+        expect(called).toBe(1);
     });
 
     it("ignores repeated cancellation", () => {
@@ -28,6 +27,6 @@ describe("cancelable", () => {
         token.cancel();
         token.cancel();
 
-        assert.equal(called, 1);
+        expect(called).toBe(1);
     });
 });

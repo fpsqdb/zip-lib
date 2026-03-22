@@ -1,33 +1,21 @@
-import * as assert from "node:assert";
 import * as path from "node:path";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import * as zl from "../../src";
 
 describe("zip", () => {
     it("zip single file", async () => {
-        try {
-            await zl.archiveFile(
-                path.join(__dirname, "../../package.json"),
-                path.join(__dirname, "../zips/package.zip"),
-            );
-            assert.ok(true, "zip single file");
-        } catch (error) {
-            assert.fail(error);
-        }
+        await zl.archiveFile(
+            path.join(__dirname, "../../package.json"),
+            path.join(__dirname, "../zips/package.zip"),
+        );
     });
+
     it("zip a file that does not exist", async () => {
-        try {
-            await zl.archiveFile(
+        await expect(
+            zl.archiveFile(
                 path.join(__dirname, "asdfasdf.jsfasd"),
                 path.join(__dirname, "../zips/safasdfafda.zip"),
-            );
-            assert.fail("zip a file that does not exist");
-        } catch (error) {
-            if (error.code === "ENOENT") {
-                assert.ok(true, "code ENOENT as expected");
-            } else {
-                assert.fail(error);
-            }
-        }
+            ),
+        ).rejects.toMatchObject({ code: "ENOENT" });
     });
 });

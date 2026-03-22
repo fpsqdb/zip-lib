@@ -1,244 +1,232 @@
-import * as assert from "node:assert";
 import * as path from "node:path";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import * as zl from "../../src";
 import * as fs from "../../src/fs";
 
+function isErrorWithCode(error: unknown, code: string): boolean {
+    return typeof error === "object" && error !== null && "code" in error && error.code === code;
+}
+
+function isErrorWithName(error: unknown, name: string): boolean {
+    return typeof error === "object" && error !== null && "name" in error && error.name === name;
+}
+
+function warnWindowsSymlinkPermission(): void {
+    console.warn("Please run this test with administrator.");
+}
+
+async function expectNamedErrorOrWindowsPermission(
+    action: () => Promise<void>,
+    expectedName: string,
+    failureMessage: string,
+): Promise<void> {
+    try {
+        await action();
+        throw new Error(failureMessage);
+    } catch (error) {
+        if (process.platform === "win32" && isErrorWithCode(error, "EPERM")) {
+            warnWindowsSymlinkPermission();
+            return;
+        }
+        expect(error).toMatchObject({ name: expectedName });
+    }
+}
+
+async function allowNamedErrorOrWindowsPermission(action: () => Promise<void>, expectedName: string): Promise<void> {
+    try {
+        await action();
+    } catch (error) {
+        if (process.platform === "win32" && isErrorWithCode(error, "EPERM")) {
+            warnWindowsSymlinkPermission();
+            return;
+        }
+        if (isErrorWithName(error, expectedName)) {
+            return;
+        }
+        throw error;
+    }
+}
+
+async function expectNonWindowsFailureOrAllowWindowsPermission(
+    action: () => Promise<void>,
+    expectedName: string,
+    failureMessage: string,
+): Promise<void> {
+    try {
+        await action();
+        if (process.platform !== "win32") {
+            throw new Error(failureMessage);
+        }
+    } catch (error) {
+        if (process.platform === "win32" && isErrorWithCode(error, "EPERM")) {
+            warnWindowsSymlinkPermission();
+            return;
+        }
+        if (isErrorWithName(error, expectedName)) {
+            return;
+        }
+        throw error;
+    }
+}
+
 describe("unzip, safeSymlinksOnly=false", () => {
     it("extract a zip file that attempt to write file outside output folder, case 1, safeSymlinksOnly=false", async () => {
-        try {
-            await zl.extract(
-                path.join(__dirname, "../unzipResources/arbitrary_file_write.zip"),
-                path.join(__dirname, "../unzips/arbitrary_file_write"),
-                {
-                    overwrite: true,
-                    symlinkAsFileOnWindows: false,
-                },
-            );
-            assert.fail("extract a zip file that attempt to write file outside output folder, case 1, safeSymlinksOnly=false");
-        } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                console.warn("Please run this test with administrator.");
-                assert.ok(true, "Please run this test with administrator.");
-            } else if (error.name === "AFWRITE") {
-                assert.ok(true, "name AFWRITE as expected");
-            } else {
-                assert.fail(error);
-            }
-        }
+        await expectNamedErrorOrWindowsPermission(
+            () =>
+                zl.extract(
+                    path.join(__dirname, "../unzipResources/arbitrary_file_write.zip"),
+                    path.join(__dirname, "../unzips/arbitrary_file_write"),
+                    {
+                        overwrite: true,
+                        symlinkAsFileOnWindows: false,
+                    },
+                ),
+            "AFWRITE",
+            "extract a zip file that attempt to write file outside output folder, case 1, safeSymlinksOnly=false",
+        );
     });
+
     it("extract a zip file that attempt to write file outside output folder, case 2, safeSymlinksOnly=false", async () => {
-        try {
-            await zl.extract(
-                path.join(__dirname, "../unzipResources/arbitrary_file_write2.zip"),
-                path.join(__dirname, "../unzips/arbitrary_file_write2"),
-                {
-                    overwrite: true,
-                    symlinkAsFileOnWindows: false,
-                },
-            );
-            assert.fail("extract a zip file that attempt to write file outside output folder, case 2, safeSymlinksOnly=false");
-        } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                console.warn("Please run this test with administrator.");
-                assert.ok(true, "Please run this test with administrator.");
-            } else if (error.name === "AFWRITE") {
-                assert.ok(true, "name AFWRITE as expected");
-            } else {
-                assert.fail(error);
-            }
-        }
+        await expectNamedErrorOrWindowsPermission(
+            () =>
+                zl.extract(
+                    path.join(__dirname, "../unzipResources/arbitrary_file_write2.zip"),
+                    path.join(__dirname, "../unzips/arbitrary_file_write2"),
+                    {
+                        overwrite: true,
+                        symlinkAsFileOnWindows: false,
+                    },
+                ),
+            "AFWRITE",
+            "extract a zip file that attempt to write file outside output folder, case 2, safeSymlinksOnly=false",
+        );
     });
+
     it("extract a zip file that attempt to write file to symlink folder which is outside output folder, safeSymlinksOnly=false", async () => {
-        try {
-            await fs.rimraf(path.join(__dirname, "../unzips/arbitrary_write/output"));
-            await fs.rimraf(path.join(__dirname, "../unzips/arbitrary_write/tmp"));
-            await fs.ensureFolder(path.join(__dirname, "../unzips/arbitrary_write/tmp"));
-            await zl.extract(
-                path.join(__dirname, "../unzipResources/arbitrary_write/output1.zip"),
-                path.join(__dirname, "../unzips/arbitrary_write/output"),
-                {
-                    overwrite: false,
-                    symlinkAsFileOnWindows: false,
-                },
-            );
-        } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                console.warn("Please run this test with administrator.");
-                assert.ok(true, "Please run this test with administrator.");
-            } else if (error.name === "AFWRITE") {
-                assert.ok(true, "name AFWRITE as expected");
-            } else {
-                assert.fail(error);
-            }
-        }
+        await fs.rimraf(path.join(__dirname, "../unzips/arbitrary_write/output"));
+        await fs.rimraf(path.join(__dirname, "../unzips/arbitrary_write/tmp"));
+        await fs.ensureFolder(path.join(__dirname, "../unzips/arbitrary_write/tmp"));
 
-        try {
-            await zl.extract(
-                path.join(__dirname, "../unzipResources/arbitrary_write/output2.zip"),
-                path.join(__dirname, "../unzips/arbitrary_write/output"),
-                {
-                    overwrite: false,
-                    symlinkAsFileOnWindows: false,
-                },
-            );
-            if (process.platform === "win32") {
-                assert.ok(true, "Please run this test with administrator.");
-            } else {
-                assert.fail(
-                    "extract a zip file that attempt to write file to symlink folder which is outside output folder",
-                );
-            }
-        } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                assert.ok(true, "Please run this test with administrator.");
-            } else if (error.name === "AFWRITE") {
-                assert.ok(true, "name AFWRITE as expected");
-            } else {
-                assert.fail(error);
-            }
-        }
+        await allowNamedErrorOrWindowsPermission(
+            () =>
+                zl.extract(
+                    path.join(__dirname, "../unzipResources/arbitrary_write/output1.zip"),
+                    path.join(__dirname, "../unzips/arbitrary_write/output"),
+                    {
+                        overwrite: false,
+                        symlinkAsFileOnWindows: false,
+                    },
+                ),
+            "AFWRITE",
+        );
 
-        try {
-            await zl.extract(
-                path.join(__dirname, "../unzipResources/arbitrary_write/output3.zip"),
-                path.join(__dirname, "../unzips/arbitrary_write/output"),
-                {
-                    overwrite: false,
-                    symlinkAsFileOnWindows: false,
-                },
-            );
-            if (process.platform === "win32") {
-                assert.ok(true, "Please run this test with administrator.");
-            } else {
-                assert.fail(
-                    "extract a zip file that attempt to write file to symlink folder which is outside output folder",
-                );
-            }
-        } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                assert.ok(true, "Please run this test with administrator.");
-            } else if (error.name === "AFWRITE") {
-                assert.ok(true, "name AFWRITE as expected");
-            } else {
-                assert.fail(error);
-            }
-        }
+        await expectNonWindowsFailureOrAllowWindowsPermission(
+            () =>
+                zl.extract(
+                    path.join(__dirname, "../unzipResources/arbitrary_write/output2.zip"),
+                    path.join(__dirname, "../unzips/arbitrary_write/output"),
+                    {
+                        overwrite: false,
+                        symlinkAsFileOnWindows: false,
+                    },
+                ),
+            "AFWRITE",
+            "extract a zip file that attempt to write file to symlink folder which is outside output folder",
+        );
+
+        await expectNonWindowsFailureOrAllowWindowsPermission(
+            () =>
+                zl.extract(
+                    path.join(__dirname, "../unzipResources/arbitrary_write/output3.zip"),
+                    path.join(__dirname, "../unzips/arbitrary_write/output"),
+                    {
+                        overwrite: false,
+                        symlinkAsFileOnWindows: false,
+                    },
+                ),
+            "AFWRITE",
+            "extract a zip file that attempt to write file to symlink folder which is outside output folder",
+        );
     });
 });
 
 describe("unzip, safeSymlinksOnly=true", () => {
     it("extract a zip file that attempt to write file outside output folder, case 1, safeSymlinksOnly=true", async () => {
-        try {
-            await zl.extract(
-                path.join(__dirname, "../unzipResources/arbitrary_file_write.zip"),
-                path.join(__dirname, "../unzips/arbitrary_file_write"),
-                {
-                    overwrite: true,
-                    safeSymlinksOnly: true,
-                    symlinkAsFileOnWindows: false,
-                },
-            );
-            assert.fail("extract a zip file that attempt to write file outside output folder, case 1, safeSymlinksOnly=true");
-        } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                console.warn("Please run this test with administrator.");
-                assert.ok(true, "Please run this test with administrator.");
-            } else if (error.name === "AF_ILLEGAL_TARGET") {
-                assert.ok(true, "name AF_ILLEGAL_TARGET as expected");
-            } else {
-                assert.fail(error);
-            }
-        }
+        await expectNamedErrorOrWindowsPermission(
+            () =>
+                zl.extract(
+                    path.join(__dirname, "../unzipResources/arbitrary_file_write.zip"),
+                    path.join(__dirname, "../unzips/arbitrary_file_write"),
+                    {
+                        overwrite: true,
+                        safeSymlinksOnly: true,
+                        symlinkAsFileOnWindows: false,
+                    },
+                ),
+            "AF_ILLEGAL_TARGET",
+            "extract a zip file that attempt to write file outside output folder, case 1, safeSymlinksOnly=true",
+        );
     });
+
     it("extract a zip file that attempt to write file outside output folder, case 2, safeSymlinksOnly=true", async () => {
-        try {
-            await zl.extract(
-                path.join(__dirname, "../unzipResources/arbitrary_file_write2.zip"),
-                path.join(__dirname, "../unzips/arbitrary_file_write2"),
-                {
-                    overwrite: true,
-                    safeSymlinksOnly: true,
-                    symlinkAsFileOnWindows: false,
-                },
-            );
-            assert.fail("extract a zip file that attempt to write file outside output folder, case 2, safeSymlinksOnly=true");
-        } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                console.warn("Please run this test with administrator.");
-                assert.ok(true, "Please run this test with administrator.");
-            } else if (error.name === "AF_ILLEGAL_TARGET") {
-                assert.ok(true, "name AF_ILLEGAL_TARGET as expected");
-            } else {
-                assert.fail(error);
-            }
-        }
+        await expectNamedErrorOrWindowsPermission(
+            () =>
+                zl.extract(
+                    path.join(__dirname, "../unzipResources/arbitrary_file_write2.zip"),
+                    path.join(__dirname, "../unzips/arbitrary_file_write2"),
+                    {
+                        overwrite: true,
+                        safeSymlinksOnly: true,
+                        symlinkAsFileOnWindows: false,
+                    },
+                ),
+            "AF_ILLEGAL_TARGET",
+            "extract a zip file that attempt to write file outside output folder, case 2, safeSymlinksOnly=true",
+        );
     });
+
     it("extract a zip file that attempt to write file to symlink folder which is outside output folder, safeSymlinksOnly=true", async () => {
-        try {
-            await fs.rimraf(path.join(__dirname, "../unzips/arbitrary_write/output"));
-            await fs.rimraf(path.join(__dirname, "../unzips/arbitrary_write/tmp"));
-            await fs.ensureFolder(path.join(__dirname, "../unzips/arbitrary_write/tmp"));
-            await zl.extract(
-                path.join(__dirname, "../unzipResources/arbitrary_write/output1.zip"),
-                path.join(__dirname, "../unzips/arbitrary_write/output"),
-                {
-                    overwrite: false,
-                    safeSymlinksOnly: true,
-                    symlinkAsFileOnWindows: false,
-                },
-            );
-        } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                console.warn("Please run this test with administrator.");
-                assert.ok(true, "Please run this test with administrator.");
-            } else if (error.name === "AF_ILLEGAL_TARGET") {
-                assert.ok(true, "name AF_ILLEGAL_TARGET as expected");
-            } else {
-                assert.fail(error);
-            }
-        }
+        await fs.rimraf(path.join(__dirname, "../unzips/arbitrary_write/output"));
+        await fs.rimraf(path.join(__dirname, "../unzips/arbitrary_write/tmp"));
+        await fs.ensureFolder(path.join(__dirname, "../unzips/arbitrary_write/tmp"));
 
-        try {
-            await zl.extract(
-                path.join(__dirname, "../unzipResources/arbitrary_write/output2.zip"),
-                path.join(__dirname, "../unzips/arbitrary_write/output"),
-                {
-                    overwrite: false,
-                    safeSymlinksOnly: true,
-                    symlinkAsFileOnWindows: false,
-                },
-            );
-            assert.ok("extract a zip file that attempt to write file to symlink folder which is outside output folder");
-        } catch (error) {
-            assert.fail(error);
-        }
+        await allowNamedErrorOrWindowsPermission(
+            () =>
+                zl.extract(
+                    path.join(__dirname, "../unzipResources/arbitrary_write/output1.zip"),
+                    path.join(__dirname, "../unzips/arbitrary_write/output"),
+                    {
+                        overwrite: false,
+                        safeSymlinksOnly: true,
+                        symlinkAsFileOnWindows: false,
+                    },
+                ),
+            "AF_ILLEGAL_TARGET",
+        );
 
-        try {
-            await zl.extract(
-                path.join(__dirname, "../unzipResources/arbitrary_write/output3.zip"),
-                path.join(__dirname, "../unzips/arbitrary_write/output"),
-                {
-                    overwrite: false,
-                    safeSymlinksOnly: true,
-                    symlinkAsFileOnWindows: false,
-                },
-            );
-            if (process.platform === "win32") {
-                assert.ok(true, "Please run this test with administrator.");
-            } else {
-                assert.fail(
-                    "extract a zip file that attempt to write file to symlink folder which is outside output folder",
-                );
-            }
-        } catch (error) {
-            if (process.platform === "win32" && error.code === "EPERM") {
-                assert.ok(true, "Please run this test with administrator.");
-            } else if (error.name === "AF_ILLEGAL_TARGET") {
-                assert.ok(true, "name AF_ILLEGAL_TARGET as expected");
-            } else {
-                assert.fail(error);
-            }
-        }
+        await zl.extract(
+            path.join(__dirname, "../unzipResources/arbitrary_write/output2.zip"),
+            path.join(__dirname, "../unzips/arbitrary_write/output"),
+            {
+                overwrite: false,
+                safeSymlinksOnly: true,
+                symlinkAsFileOnWindows: false,
+            },
+        );
+
+        await expectNonWindowsFailureOrAllowWindowsPermission(
+            () =>
+                zl.extract(
+                    path.join(__dirname, "../unzipResources/arbitrary_write/output3.zip"),
+                    path.join(__dirname, "../unzips/arbitrary_write/output"),
+                    {
+                        overwrite: false,
+                        safeSymlinksOnly: true,
+                        symlinkAsFileOnWindows: false,
+                    },
+                ),
+            "AF_ILLEGAL_TARGET",
+            "extract a zip file that attempt to write file to symlink folder which is outside output folder",
+        );
     });
 });

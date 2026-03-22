@@ -5,7 +5,9 @@ import * as zl from "../../src";
 
 describe("unzip", () => {
     it("extract a zip file that does not exist", async () => {
-        await expect(zl.extract(path.join(__dirname, "../not_exist.zip"), path.join(__dirname, "../unzips/not_exist"))).rejects.toMatchObject({
+        await expect(
+            zl.extract(path.join(__dirname, "../not_exist.zip"), path.join(__dirname, "../unzips/not_exist")),
+        ).rejects.toMatchObject({
             code: "ENOENT",
         });
     });

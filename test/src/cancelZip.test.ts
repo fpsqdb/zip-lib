@@ -22,22 +22,18 @@ describe("zip", () => {
         await expect(zip.archive()).rejects.toMatchObject({ name: "Canceled" });
     });
 
-    it(
-        "cancel zip and try again",
-        async () => {
-            const zip = new zl.Zip();
-            const target = path.join(__dirname, "../zips/node_modules.zip");
-            zip.addFolder(path.join(__dirname, "../../node_modules"));
-            setTimeout(() => {
-                zip.cancel();
-            }, 500);
-            await expect(zip.archive(target)).rejects.toMatchObject({ name: "Canceled" });
+    it("cancel zip and try again", async () => {
+        const zip = new zl.Zip();
+        const target = path.join(__dirname, "../zips/node_modules.zip");
+        zip.addFolder(path.join(__dirname, "../../node_modules"));
+        setTimeout(() => {
+            zip.cancel();
+        }, 500);
+        await expect(zip.archive(target)).rejects.toMatchObject({ name: "Canceled" });
 
-            zip.addFile(path.join(__dirname, "../../package.json"));
-            await zip.archive(target);
-        },
-        60000,
-    );
+        zip.addFile(path.join(__dirname, "../../package.json"));
+        await zip.archive(target);
+    }, 60000);
 
     it("cancel after zip completed", async () => {
         const zip = new zl.Zip();

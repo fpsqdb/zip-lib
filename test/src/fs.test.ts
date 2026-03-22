@@ -162,7 +162,9 @@ describe("fs helper", () => {
         const target3 = "z:";
         it(target3, async () => {
             if (process.platform === "win32") {
-                await expect(exfs.rimraf(target3)).rejects.toThrow(`Refuse to recursively delete root, path: "${target3}"`);
+                await expect(exfs.rimraf(target3)).rejects.toThrow(
+                    `Refuse to recursively delete root, path: "${target3}"`,
+                );
                 return;
             }
             await exfs.rimraf(target3);

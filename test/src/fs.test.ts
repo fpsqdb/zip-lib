@@ -1,3 +1,4 @@
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { describe, expect, it, test } from "vitest";
 import * as exfs from "../../src/fs";
@@ -90,6 +91,46 @@ describe("fs helper", () => {
         });
     });
 
+    describe("getFileEntry", () => {
+        it("returns a file entry for a regular file", async () => {
+            const target = path.join(__dirname, "../resources/¹ º » ¼ ½ ¾.txt");
+            const entry = await exfs.getFileEntry(target);
+
+            expect(entry.path).toBe(target);
+            expect(entry.isSymbolicLink).toBe(false);
+            expect(entry.type).toBe("file");
+            expect(entry.mtime).toBeInstanceOf(Date);
+            expect(entry.mode).toBeTypeOf("number");
+        });
+
+        it("returns a directory entry for a regular folder", async () => {
+            const target = path.join(__dirname, "../resources/subfolder");
+            const entry = await exfs.getFileEntry(target);
+
+            expect(entry.path).toBe(target);
+            expect(entry.isSymbolicLink).toBe(false);
+            expect(entry.type).toBe("dir");
+            expect(entry.mtime).toBeInstanceOf(Date);
+            expect(entry.mode).toBeTypeOf("number");
+        });
+
+        it("returns a file entry for a file symbolic link when available", async () => {
+            const target = path.join(__dirname, "../resources/symlink");
+            const entry = await exfs.getFileEntry(target);
+            expect(entry.path).toBe(target);
+            expect(entry.isSymbolicLink).toBe(true);
+            expect(entry.type).toBe("file");
+        });
+
+        it("returns a directory entry for a directory symbolic link when available", async () => {
+            const target = path.join(__dirname, "../resources/subfolder_symlink");
+            const entry = await exfs.getFileEntry(target);
+            expect(entry.path).toBe(target);
+            expect(entry.isSymbolicLink).toBe(true);
+            expect(entry.type).toBe("dir");
+        });
+    });
+
     describe("ensureFolder", () => {
         const target1 = path.join(__dirname, "../unzips/test/sub folder/sub");
         it(target1, async () => {
@@ -144,6 +185,43 @@ describe("fs helper", () => {
         });
     });
 
+    describe("statFolder", () => {
+        it("returns undefined for a missing folder", async () => {
+            const target = path.join(__dirname, "../unzips/statFolder-missing");
+            await exfs.rimraf(target);
+            await expect(exfs.statFolder(target)).resolves.toBeUndefined();
+        });
+
+        it("returns directory info for a regular folder", async () => {
+            const target = path.join(__dirname, "../unzips/statFolder-regular");
+            await exfs.ensureFolder(target);
+
+            await expect(exfs.statFolder(target)).resolves.toEqual({
+                isDirectory: true,
+                isSymbolicLink: false,
+            });
+        });
+
+        it("returns symlink info for a symbolic-link folder when available", async () => {
+            const target = path.join(__dirname, "../resources/subfolder_symlink");
+            await expect(exfs.statFolder(target)).resolves.toEqual({
+                isDirectory: false,
+                isSymbolicLink: true,
+                realpath: path.resolve(__dirname, "../resources/subfolder"),
+            });
+        });
+
+        it("throws when the target exists but is a file", async () => {
+            const target = path.join(__dirname, "../resources/¹ º » ¼ ½ ¾.txt");
+            await expect(exfs.statFolder(target)).rejects.toThrow(`"${target}" exists and is not a directory.`);
+        });
+
+        it("throws when the target is a symlink to a file when available", async () => {
+            const target = path.join(__dirname, "../resources/symlink");
+            await expect(exfs.statFolder(target)).rejects.toThrow(`"${target}" exists and is not a directory.`);
+        });
+    });
+
     describe("rimraf", () => {
         const target1 = path.join(__dirname, "../unzips/test2/sub folder/sub");
         it(target1, async () => {
@@ -168,6 +246,15 @@ describe("fs helper", () => {
                 return;
             }
             await exfs.rimraf(target3);
+        });
+
+        it("deletes a single file", async () => {
+            const target = path.join(__dirname, "../unzips/rimraf-file.txt");
+            await exfs.ensureFolder(path.dirname(target));
+            await fs.writeFile(target, "rimraf");
+
+            await exfs.rimraf(target);
+            await expect(exfs.pathExists(target)).resolves.toBe(false);
         });
     });
 

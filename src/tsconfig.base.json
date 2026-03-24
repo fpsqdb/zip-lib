@@ -1,8 +1,7 @@
 {
     "compilerOptions": {
-        "module": "commonjs",
-        "baseUrl": ".",
-        "moduleResolution": "node",
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
         "declaration": true,
         "experimentalDecorators": true,
         "allowSyntheticDefaultImports": true,

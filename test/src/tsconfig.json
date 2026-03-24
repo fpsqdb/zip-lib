@@ -1,10 +1,8 @@
 {
     "compilerOptions": {
-        "module": "commonjs",
-        "baseUrl": ".",
-        "moduleResolution": "node",
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
         "target": "es2017",
-        "outDir": "../out",
         "sourceMap": true,
         "experimentalDecorators": true,
         "allowSyntheticDefaultImports": true,

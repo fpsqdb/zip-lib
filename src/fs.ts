@@ -104,7 +104,7 @@ export async function ensureFolder(folder: string): Promise<FolderStat> {
     } catch (error) {
         // ENOENT: a parent folder does not exist yet, continue
         // to create the parent folder and then try again.
-        if (error.code === "ENOENT") {
+        if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
             await ensureFolder(path.dirname(folder));
             return await mkdir(folder);
         }
@@ -126,7 +126,7 @@ export async function statFolder(folder: string): Promise<FolderStat | undefined
     try {
         return await statExistingFolder(folder);
     } catch (error) {
-        if (error.code === "ENOENT") {
+        if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
             return undefined;
         }
         throw error;
@@ -158,7 +158,7 @@ export async function rimraf(target: string): Promise<void> {
         }
         await fs.unlink(target);
     } catch (error) {
-        if (error.code !== "ENOENT") {
+        if (typeof error === "object" && error !== null && "code" in error && error.code !== "ENOENT") {
             throw error;
         }
     }
@@ -173,7 +173,7 @@ async function mkdir(folder: string): Promise<FolderStat> {
         };
     } catch (error) {
         // ENOENT: a parent folder does not exist yet or folder name is invalid.
-        if (error.code === "ENOENT") {
+        if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
             throw error;
         }
         // Any other error: check if folder exists and

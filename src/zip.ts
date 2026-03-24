@@ -63,7 +63,7 @@ export class Zip extends Cancelable {
     private zipFiles: ZipFileEntry[];
     private zipFolders: ZipFolderEntry[];
 
-    private token: CancellationToken | null;
+    private token: CancellationToken | null = null;
     private activeArchive: ActiveArchive | null = null;
     /**
      * Adds a file from the file system at `realPath` to the zip file as `metadataPath`.

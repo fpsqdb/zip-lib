@@ -57,11 +57,16 @@ export abstract class Cancelable implements ICancelable {
      * see https://travis-ci.org/fpsqdb/zip-lib/jobs/606040627#L124
      * @param error
      */
-    protected wrapError(error: Error, isCanceled: boolean): Error {
+    protected wrapError(error: Error | unknown, isCanceled: boolean): Error {
         if (isCanceled) {
             return this.canceledError();
         }
-        return error;
+
+        if (error instanceof Error) {
+            return error;
+        }
+
+        return new Error(String(error));
     }
 
     /**

@@ -68,7 +68,7 @@ class EntryEvent implements IEntryEvent {
      *
      */
     constructor(private _entryCount: number) {}
-    private _entryName: string;
+    private _entryName: string = "";
     get entryName(): string {
         return this._entryName;
     }
@@ -135,7 +135,7 @@ class EntryContext implements IEntryContext {
         this._inspectedFolders = [];
         this._ensuredFolders = [];
     }
-    private _decodeEntryFileName: string;
+    private _decodeEntryFileName: string = "";
     public get decodeEntryFileName(): string {
         return this._decodeEntryFileName;
     }
@@ -240,8 +240,8 @@ export class Unzip extends Cancelable {
         super();
     }
 
-    private zipFile: yauzl.ZipFile | null;
-    private token: CancellationToken | null;
+    private zipFile: yauzl.ZipFile | null = null;
+    private token: CancellationToken | null = null;
 
     /**
      * Extract the zip buffer to the specified location.

@@ -38,9 +38,9 @@
         "@types/node": "^20.19.37",
         "@types/yauzl": "^2.10.3",
         "@types/yazl": "^3.3.0",
-        "@vitest/coverage-v8": "^4.1.0",
+        "@vitest/coverage-v8": "^4.1.1",
         "rimraf": "^6.1.3",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.2",
         "vitest": "^4.0.18"
     }
 }

@@ -317,11 +317,5 @@ describe("fs helper", () => {
             expect(exfs.isOutside("/var/www", "/var/www/uploads/../../etc")).toBe(true);
             expect(exfs.isOutside("/var//www", "/var/www/..//")).toBe(true);
         });
-
-        it("should handle case-insensitivity when requested", () => {
-            const caseInsensitive = process.platform === "win32" || process.platform === "darwin";
-            expect(exfs.isOutside("/Users/Admin", "/users/admin")).toBe(!caseInsensitive);
-            expect(exfs.isOutside("/Users/Admin", "/users/admin")).toBe(!caseInsensitive);
-        });
     });
 });

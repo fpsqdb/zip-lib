@@ -280,6 +280,11 @@ describe("fs helper", () => {
                 const targetOnC = "C:\\App\\Data";
                 expect(exfs.isOutside(baseOnC, targetOnC)).toBe(false);
             });
+            it("Windows: should return false and ignore case", () => {
+                const baseOnC = "C:\\App";
+                const targetOnC = "c:\\app\\Data";
+                expect(exfs.isOutside(baseOnC, targetOnC)).toBe(false);
+            });
         }
 
         it("should return true if target escapes via parent dots", () => {

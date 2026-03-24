@@ -1,42 +1,26 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { describe, expect, it, test } from "vitest";
+import { describe, expect, it } from "vitest";
 import * as exfs from "../../src/fs";
 
 describe("fs helper", () => {
     describe("isRootPath", () => {
-        it("d", () => {
+        it("should correctly identify various root and non-root paths", () => {
+            const isWin = process.platform === "win32";
+
             expect(exfs.isRootPath("d")).toBe(false);
-        });
-        it("/", () => {
             expect(exfs.isRootPath("/")).toBe(true);
-        });
-        it("\\", () => {
             expect(exfs.isRootPath("\\")).toBe(true);
-        });
-        it("\\test", () => {
             expect(exfs.isRootPath("\\test")).toBe(false);
-        });
-        it("/test", () => {
             expect(exfs.isRootPath("/test")).toBe(false);
-        });
-        it("d:", () => {
-            expect(exfs.isRootPath("d:")).toBe(process.platform === "win32");
-        });
-        it("D:", () => {
-            expect(exfs.isRootPath("D:")).toBe(process.platform === "win32");
-        });
-        it("d:/", () => {
-            expect(exfs.isRootPath("d:/")).toBe(process.platform === "win32");
-        });
-        it("D:/", () => {
-            expect(exfs.isRootPath("D:/")).toBe(process.platform === "win32");
-        });
-        it("D:/test", () => {
-            expect(exfs.isRootPath("D:/test")).toBe(false);
-        });
-        it("dd:", () => {
             expect(exfs.isRootPath("dd:")).toBe(false);
+            expect(exfs.isRootPath("D:/test")).toBe(false);
+
+            // Windows-specific drive root cases
+            expect(exfs.isRootPath("d:")).toBe(isWin);
+            expect(exfs.isRootPath("D:")).toBe(isWin);
+            expect(exfs.isRootPath("d:/")).toBe(isWin);
+            expect(exfs.isRootPath("D:/")).toBe(isWin);
         });
     });
 
@@ -261,45 +245,83 @@ describe("fs helper", () => {
     describe("isOutside", () => {
         const baseDir = path.resolve("test-root");
 
-        test("should return false for the exact same directory", () => {
+        it("should return false for the exact same directory", () => {
             expect(exfs.isOutside(baseDir, baseDir)).toBe(false);
         });
 
-        test("should return false for a file or subfolder deep inside", () => {
+        it("should return false for a file or subfolder deep inside", () => {
             const insidePath = path.join(baseDir, "subdir", "deep", "file.txt");
             expect(exfs.isOutside(baseDir, insidePath)).toBe(false);
         });
 
-        test("should return true for a path that uses .. to climb out", () => {
+        it("should return true for a path that uses .. to climb out", () => {
             const outsidePath = path.join(baseDir, "..", "external_file.txt");
             expect(exfs.isOutside(baseDir, outsidePath)).toBe(true);
         });
 
-        test("should return false for .. that resolves back to inside the base", () => {
+        it("should return false for .. that resolves back to inside the base", () => {
             const safePath = path.join(baseDir, "sub", "..", "file.txt");
             expect(exfs.isOutside(baseDir, safePath)).toBe(false);
         });
 
-        test("should return true for absolute system paths", () => {
+        it("should return true for absolute system paths", () => {
             const systemPath = process.platform === "win32" ? "C:\\Windows" : "/etc/passwd";
             expect(exfs.isOutside(baseDir, systemPath)).toBe(true);
         });
 
         if (process.platform === "win32") {
-            test("Windows: should return true for different drive letters", () => {
+            it("Windows: should return true for different drive letters", () => {
                 const baseOnC = "C:\\App";
                 const targetOnD = "D:\\Data";
                 expect(exfs.isOutside(baseOnC, targetOnD)).toBe(true);
             });
-            test("Windows: should return false for same drive letters", () => {
+            it("Windows: should return false for same drive letters", () => {
                 const baseOnC = "C:\\App";
                 const targetOnC = "C:\\App\\Data";
                 expect(exfs.isOutside(baseOnC, targetOnC)).toBe(false);
             });
         }
 
-        test("should handle relative paths correctly by resolving them first", () => {
+        it("should return true if target escapes via parent dots", () => {
             expect(exfs.isOutside(".", "..")).toBe(true);
+            expect(exfs.isOutside("./src", "./test")).toBe(true);
+        });
+
+        it("should return false if target is deeper but defined relatively", () => {
+            expect(exfs.isOutside(".", "a/b/c")).toBe(false);
+        });
+
+        it("should handle deeply nested escapes", () => {
+            expect(exfs.isOutside("src/utils", "src/utils/../../tests")).toBe(true);
+        });
+
+        it("should handle relative paths correctly by resolving them first", () => {
+            expect(exfs.isOutside(".", "..")).toBe(true);
+        });
+
+        it("should return true for parent directories or different roots", () => {
+            expect(exfs.isOutside("/var/www/html", "/var/www")).toBe(true);
+            expect(exfs.isOutside("C:/Folder", "D:/Folder")).toBe(true);
+        });
+
+        it("should return false for sub-directories or identical paths", () => {
+            expect(exfs.isOutside("/var/www", "/var/www/uploads")).toBe(false);
+            expect(exfs.isOutside("/var/www", "/var/www")).toBe(false);
+        });
+
+        it("should detect partial name match traps (e.g., /app vs /app-data)", () => {
+            expect(exfs.isOutside("/var/www", "/var/www-data")).toBe(true);
+        });
+
+        it("should handle path traversal and redundant slashes", () => {
+            expect(exfs.isOutside("/var/www", "/var/www/uploads/../../etc")).toBe(true);
+            expect(exfs.isOutside("/var//www", "/var/www/..//")).toBe(true);
+        });
+
+        it("should handle case-insensitivity when requested", () => {
+            const caseInsensitive = process.platform === "win32" || process.platform === "darwin";
+            expect(exfs.isOutside("/Users/Admin", "/users/admin")).toBe(!caseInsensitive);
+            expect(exfs.isOutside("/Users/Admin", "/users/admin")).toBe(!caseInsensitive);
         });
     });
 });

@@ -211,14 +211,14 @@ class EntryContext implements IEntryContext {
             return false;
         }
         for (const { folder, realpath } of this._symlinkFolders) {
-            if (tpath.includes(folder)) {
+            if (!exfs.isOutside(folder, tpath)) {
                 if (exfs.isOutside(this.realTargetFolder, realpath)) {
                     return true;
                 }
             }
         }
         for (const fileName of this._symlinkFileNames) {
-            if (tpath.includes(fileName)) {
+            if (!exfs.isOutside(fileName, tpath)) {
                 const realFilePath = await exfs.realpath(tpath);
                 if (exfs.isOutside(this.realTargetFolder, realFilePath)) {
                     return true;

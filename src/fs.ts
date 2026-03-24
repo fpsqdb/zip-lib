@@ -22,8 +22,15 @@ export type FolderStat =
       };
 export type FileType = "file" | "dir";
 
-export function isOutside(baseDir: string, targetPath: string): boolean {
-    const absoluteBase = path.resolve(baseDir);
+/**
+ * Checks if the target path is outside the specified base directory.
+ *
+ * @param basePath - The reference directory.
+ * @param targetPath - The path to evaluate against the base.
+ * @returns `true` if targetPath is outside of basePath.
+ */
+export function isOutside(basePath: string, targetPath: string): boolean {
+    const absoluteBase = path.resolve(basePath);
     const absoluteTarget = path.resolve(targetPath);
 
     const relative = path.relative(absoluteBase, absoluteTarget);

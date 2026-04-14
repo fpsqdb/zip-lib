@@ -290,11 +290,23 @@ export class Zip extends Cancelable {
     ): Promise<void> {
         if (entry.isSymbolicLink) {
             if (this.followSymlink()) {
-                if (entry.type === "dir") {
+                try {
                     const realPath = await exfs.realpath(file.path);
-                    await this.walkDir(zip, [{ path: realPath, metadataPath: file.metadataPath }], token);
-                } else {
-                    await this.addFileStream(zip, entry, file.metadataPath, token);
+                    const actualStat = await fs.stat(realPath);
+                    if (actualStat.isDirectory()) {
+                        await this.walkDir(zip, [{ path: realPath, metadataPath: file.metadataPath }], token);
+                    } else {
+                        const targetEntry: exfs.FileEntry = {
+                            path: realPath,
+                            isSymbolicLink: false,
+                            type: "file",
+                            mtime: actualStat.mtime,
+                            mode: actualStat.mode,
+                        };
+                        await this.addFileStream(zip, targetEntry, file.metadataPath, token);
+                    }
+                } catch (_error) {
+                    // Symlink is broken, ignore it
                 }
             } else {
                 await this.addSymlink(zip, entry, file.metadataPath);
@@ -422,4 +434,3 @@ export class Zip extends Cancelable {
         };
     }
 }
-

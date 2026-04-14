@@ -9,7 +9,7 @@ describe("zip", () => {
 
     it("zip a file that does not exist", async () => {
         await expect(
-            zl.archiveFile(path.join(__dirname, "asdfasdf.jsfasd"), path.join(__dirname, "../zips/safasdfafda.zip")),
+            zl.archiveFile(path.join(__dirname, "not_exist_file.file"), path.join(__dirname, "../zips/not_exist_file.zip")),
         ).rejects.toMatchObject({ code: "ENOENT" });
     });
 });

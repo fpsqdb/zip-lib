@@ -46,8 +46,6 @@ describe("fs helper", () => {
         const target1 = path.join(__dirname, "../resources");
         it(target1, async () => {
             const files = await exfs.readdirp(target1);
-            const fileSymlinkExist = await exfs.pathExists(path.join(target1, "symlink"));
-            const folderSymlinkExist = await exfs.pathExists(path.join(target1, "subfolder_symlink"));
             const expectedFiles: string[] = [];
             expectedFiles.push(path.join(target1, "«ταБЬℓσ»"));
             expectedFiles.push(path.join(target1, "name with space/empty folder"));
@@ -56,19 +54,22 @@ describe("fs helper", () => {
             expectedFiles.push(path.join(target1, "subfolder/test.txt - shortcut.lnk"));
             expectedFiles.push(path.join(target1, "¹ º » ¼ ½ ¾.txt"));
             expectedFiles.push(path.join(target1, "src - shortcut.lnk"));
-            if (fileSymlinkExist && !folderSymlinkExist) {
-                expectedFiles.push(path.join(target1, "symlink"));
-                expect(files).toHaveLength(8);
-            } else if (!fileSymlinkExist && folderSymlinkExist) {
-                expectedFiles.push(path.join(target1, "subfolder_symlink"));
-                expect(files).toHaveLength(8);
-            } else if (!fileSymlinkExist && !folderSymlinkExist) {
-                expect(files).toHaveLength(7);
-            } else if (fileSymlinkExist && folderSymlinkExist) {
-                expectedFiles.push(path.join(target1, "symlink"));
-                expectedFiles.push(path.join(target1, "subfolder_symlink"));
-                expect(files).toHaveLength(9);
-            }
+            expectedFiles.push(path.join(target1, "symlink"));
+            expectedFiles.push(path.join(target1, "subfolder_symlink"));
+            expect(files).toHaveLength(9);
+            files.forEach((item) => {
+                expect(expectedFiles).toContain(item.path);
+            });
+        });
+        const target2 = path.join(__dirname, "../resources_with_broken_symlink");
+        it(target2, async () => {
+            const files = await exfs.readdirp(target2);
+            const expectedFiles: string[] = [];
+            expectedFiles.push(path.join(target2, "test.txt"));
+            expectedFiles.push(path.join(target2, "broken_file_symlink"));
+            expectedFiles.push(path.join(target2, "broken_folder_symlink"));
+            expectedFiles.push(path.join(target2, "broken_folder_symlink2"));
+            expect(files).toHaveLength(4);
             files.forEach((item) => {
                 expect(expectedFiles).toContain(item.path);
             });
@@ -108,6 +109,30 @@ describe("fs helper", () => {
 
         it("returns a directory entry for a directory symbolic link when available", async () => {
             const target = path.join(__dirname, "../resources/subfolder_symlink");
+            const entry = await exfs.getFileEntry(target);
+            expect(entry.path).toBe(target);
+            expect(entry.isSymbolicLink).toBe(true);
+            expect(entry.type).toBe("dir");
+        });
+
+        it("returns a file entry for a file symbolic link when broken", async () => {
+            const target = path.join(__dirname, "../resources_with_broken_symlink/broken_file_symlink");
+            const entry = await exfs.getFileEntry(target);
+            expect(entry.path).toBe(target);
+            expect(entry.isSymbolicLink).toBe(true);
+            expect(entry.type).toBe("file");
+        });
+
+        it("returns a file entry for a directory symbolic link when broken", async () => {
+            const target = path.join(__dirname, "../resources_with_broken_symlink/broken_folder_symlink");
+            const entry = await exfs.getFileEntry(target);
+            expect(entry.path).toBe(target);
+            expect(entry.isSymbolicLink).toBe(true);
+            expect(entry.type).toBe("file");
+        });
+
+        it("returns a directory entry for a directory symbolic link when broken", async () => {
+            const target = path.join(__dirname, "../resources_with_broken_symlink/broken_folder_symlink2");
             const entry = await exfs.getFileEntry(target);
             expect(entry.path).toBe(target);
             expect(entry.isSymbolicLink).toBe(true);

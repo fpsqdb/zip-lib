@@ -10,3 +10,6 @@
 /test/resources/symlink
 /test/resources/subfolder_symlink
 /.coverage
+/test/resources_with_broken_symlink/broken_file_symlink
+/test/resources_with_broken_symlink/broken_folder_symlink
+/test/resources_with_broken_symlink/broken_folder_symlink2

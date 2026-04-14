@@ -294,7 +294,7 @@ export class Zip extends Cancelable {
                     const realPath = await exfs.realpath(file.path);
                     await this.walkDir(zip, [{ path: realPath, metadataPath: file.metadataPath }], token);
                 } else {
-                    zip.addFile(file.path, file.metadataPath, this.getYazlOption());
+                    await this.addFileStream(zip, entry, file.metadataPath, token);
                 }
             } else {
                 await this.addSymlink(zip, entry, file.metadataPath);
@@ -422,3 +422,4 @@ export class Zip extends Cancelable {
         };
     }
 }
+

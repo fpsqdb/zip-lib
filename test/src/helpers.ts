@@ -1,13 +1,5 @@
 import { expect } from "vitest";
 
-export function isErrorWithCode(error: unknown, code: string): boolean {
-    return typeof error === "object" && error !== null && "code" in error && error.code === code;
-}
-
-export function isErrorWithName(error: unknown, name: string): boolean {
-    return typeof error === "object" && error !== null && "name" in error && error.name === name;
-}
-
 export async function expectNamedError(
     action: () => Promise<void>,
     expectedName: string,
@@ -21,13 +13,15 @@ export async function expectNamedError(
     }
 }
 
-export async function allowNamedError(action: () => Promise<void>, expectedName: string): Promise<void> {
+export async function expectCodeError(
+    action: () => Promise<void>,
+    expectedCode: string,
+    failureMessage: string,
+): Promise<void> {
     try {
         await action();
+        throw new Error(failureMessage);
     } catch (error) {
-        if (isErrorWithName(error, expectedName)) {
-            return;
-        }
-        throw error;
+        expect(error).toMatchObject({ code: expectedCode });
     }
 }

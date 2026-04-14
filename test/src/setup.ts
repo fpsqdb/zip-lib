@@ -3,7 +3,7 @@ import path from "node:path";
 import * as rimraf from "rimraf";
 
 function ensureSymlink(linkPath: string, target: string, type?: "dir" | "file" | "junction"): void {
-    if (fs.existsSync(linkPath)) {
+    try {
         const stat = fs.lstatSync(linkPath);
         if (stat.isSymbolicLink()) {
             return;
@@ -13,6 +13,8 @@ function ensureSymlink(linkPath: string, target: string, type?: "dir" | "file" |
         } else {
             fs.unlinkSync(linkPath);
         }
+    } catch (_error) {
+        // ignore error
     }
 
     fs.symlinkSync(target, linkPath, type);
@@ -37,6 +39,15 @@ export function setup() {
     const fileSymlinkPath = path.join(__dirname, "../resources/symlink");
     ensureSymlink(fileSymlinkPath, "./¹ º » ¼ ½ ¾.txt", "file");
 
+    const brokenFileSymlinkPath = path.join(__dirname, "../resources_with_broken_symlink/broken_file_symlink");
+    ensureSymlink(brokenFileSymlinkPath, "./not_exist_file.txt", "file");
+
     const folderSymlinkPath = path.join(__dirname, "../resources/subfolder_symlink");
     ensureSymlink(folderSymlinkPath, "./subfolder", "dir");
+
+    const brokenFolderSymlinkPath = path.join(__dirname, "../resources_with_broken_symlink/broken_folder_symlink");
+    ensureSymlink(brokenFolderSymlinkPath, "./not_exist_folder", "dir");
+
+    const brokenFolderSymlinkPath2 = path.join(__dirname, "../resources_with_broken_symlink/broken_folder_symlink2");
+    ensureSymlink(brokenFolderSymlinkPath2, "./not_exist_folder/", "dir");
 }

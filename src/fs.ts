@@ -88,11 +88,29 @@ export async function getFileEntry(target: string): Promise<FileEntry> {
     // If the path is a link, we must instead use fs.stat() to find out if the
     // link is a directory or not because lstat will always return the stat of
     // the link which is always a file.
-    const actualStat = await fs.stat(target);
+    try {
+        const actualStat = await fs.stat(target);
+        return {
+            path: target,
+            isSymbolicLink: true,
+            type: actualStat.isDirectory() ? "dir" : "file",
+            mtime: stat.mtime,
+            mode: stat.mode,
+        };
+    } catch (_error) {
+        // link is broken, ignore error
+    }
+
+    // If the symlink is broken (points to a non-existent target), fs.stat() fails.
+    // We fall back to fs.readlink() to inspect the literal target path string.
+    const linkTarget = await fs.readlink(target);
+    // Heuristic check: If the target path ends with a slash, we assume it's a directory.
+    // Note: This is an approximation since many directory symlinks don't include a trailing slash.
+    const fileType: FileType = linkTarget.endsWith("/") || linkTarget.endsWith("\\") ? "dir" : "file";
     return {
         path: target,
         isSymbolicLink: true,
-        type: actualStat.isDirectory() ? "dir" : "file",
+        type: fileType,
         mtime: stat.mtime,
         mode: stat.mode,
     };

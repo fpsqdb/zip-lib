@@ -49,6 +49,7 @@ describe("unzip", () => {
         await zl.extract(
             path.join(__dirname, "../unzipResources/resources_macos.zip"),
             path.join(__dirname, "../unzips/resources_macos"),
+            { overwrite: true },
         );
         await fs.access(path.join(__dirname, "../unzips/resources_macos/", expectedFileName));
     });

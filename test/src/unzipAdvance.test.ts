@@ -11,6 +11,7 @@ describe("unzip", () => {
             path.join(__dirname, "../unzipResources/resources.zip"),
             path.join(__dirname, "../unzips/resources_source_path"),
             {
+                overwrite: true,
                 onEntry: (event: zl.IEntryEvent) => {
                     actual = event.entryCount;
                 },

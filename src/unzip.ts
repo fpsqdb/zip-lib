@@ -497,7 +497,7 @@ export class Unzip extends Cancelable {
         const filePath = entryContext.getFilePath();
         const fileDir = path.dirname(filePath);
         await entryContext.inspectFolder(fileDir);
-        const outside = await entryContext.isOutsideTargetFolder(fileDir);
+        const outside = await entryContext.isOutsideTargetFolder(filePath);
         if (outside) {
             const error = new Error(`Refuse to write file outside "${entryContext.targetFolder}", file: "${filePath}"`);
             error.name = "AFWRITE";

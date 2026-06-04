@@ -30,11 +30,11 @@
     "author": "fpsqdb",
     "license": "MIT",
     "dependencies": {
-        "yauzl": "^3.3.1",
+        "yauzl": "^3.3.2",
         "yazl": "^3.3.1"
     },
     "devDependencies": {
-        "@biomejs/biome": "^2.4.15",
+        "@biomejs/biome": "^2.4.16",
         "@types/node": "^20.19.41",
         "@types/yauzl": "^2.10.3",
         "@types/yazl": "^3.3.1",

@@ -484,25 +484,13 @@ export class Unzip extends Cancelable {
 
     private async readStreamContent(readStream: Readable, token: CancellationToken): Promise<string> {
         let linkContent = "";
-        const readPromise = new Promise<void>((resolve, reject) => {
-            readStream.on("data", (chunk: string | Buffer) => {
-                linkContent += typeof chunk === "string" ? chunk : chunk.toString();
-            });
-            readStream.once("end", resolve);
-            readStream.once("error", (err) => {
-                reject(this.wrapError(err, token.isCancelled));
-            });
-        });
-        const disposeCancel = token.onCancelled(() => {
-            readStream.destroy(this.canceledError());
-        });
-
-        try {
-            await readPromise;
-            return linkContent;
-        } finally {
-            disposeCancel();
+        for await (const chunk of readStream) {
+            linkContent += typeof chunk === "string" ? chunk : (chunk as Buffer).toString();
+            if (token.isCancelled) {
+                throw this.canceledError();
+            }
         }
+        return linkContent;
     }
 
     private modeFromEntry(entry: yauzl.Entry): number {

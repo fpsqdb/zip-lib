@@ -19,44 +19,6 @@ describe("internal coverage", () => {
         ).rejects.toThrow(/invalid/i);
     });
 
-    it("ignores repeated unzip settler calls", () => {
-        const unzip = new zl.Unzip();
-        let resolved = 0;
-        let rejected = 0;
-
-        const resolveSettler = (unzip as any).createPromiseSettler(
-            () => {
-                resolved++;
-            },
-            () => {
-                rejected++;
-            },
-        );
-
-        resolveSettler.resolve();
-        resolveSettler.resolve();
-        resolveSettler.reject(new Error("late reject"));
-
-        expect(resolved).toBe(1);
-        expect(rejected).toBe(0);
-
-        const rejectSettler = (unzip as any).createPromiseSettler(
-            () => {
-                resolved++;
-            },
-            () => {
-                rejected++;
-            },
-        );
-
-        rejectSettler.reject(new Error("first reject"));
-        rejectSettler.reject(new Error("second reject"));
-        rejectSettler.resolve();
-
-        expect(resolved).toBe(1);
-        expect(rejected).toBe(1);
-    });
-
     it("stops walking folders when zip is already canceled", async () => {
         const zip = new zl.Zip();
         const token = new CancellationToken();

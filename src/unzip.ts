@@ -258,14 +258,19 @@ export class Unzip extends Cancelable {
     public async extract(zipFileOrBuffer: string | Buffer, targetFolder: string): Promise<void> {
         const token = new CancellationToken();
         this.token = token;
+        let currentZFile: yauzl.ZipFile | null = null;
 
         try {
             const { zfile, realTargetFolder } = await this.prepareExtraction(zipFileOrBuffer, targetFolder, token);
+            currentZFile = zfile;
             this.zipFile = zfile;
             await this.processEntries(zfile, targetFolder, realTargetFolder, token);
         } finally {
             if (this.token === token) {
                 this.token = null;
+            }
+            if (this.zipFile && this.zipFile === currentZFile) {
+                this.zipFile = null;
             }
         }
     }
@@ -286,6 +291,10 @@ export class Unzip extends Cancelable {
         const realTargetFolder = await exfs.realpath(targetFolder);
         const zfile = await this.openZip(zipFileOrBuffer, token);
 
+        if (token.isCancelled) {
+            throw this.canceledError();
+        }
+
         return { zfile, realTargetFolder };
     }
 
@@ -295,85 +304,19 @@ export class Unzip extends Cancelable {
         realTargetFolder: string,
         token: CancellationToken,
     ): Promise<void> {
-        return await new Promise<void>((resolve, reject) => {
-            let extractedEntriesCount = 0;
-            let anyError: Error | null = null;
+        try {
             const total = zfile.entryCount;
             const entryContext: IEntryContext = new EntryContext(targetFolder, realTargetFolder, this.symlinkToFile());
             const entryEvent = new EntryEvent(total);
-            const settle = this.createPromiseSettler(resolve, reject);
-            const disposeCancel = token.onCancelled(() => {
-                this.closeZip(zfile);
-                settle.reject(this.canceledError());
-            });
-
-            zfile.once("error", (err) => {
-                disposeCancel();
-                anyError = this.wrapError(err, token.isCancelled);
-                this.closeZip(zfile);
-                settle.reject(anyError);
-            });
-
-            zfile.once("close", () => {
-                disposeCancel();
-                if (this.zipFile === zfile) {
-                    this.zipFile = null;
+            for await (const entry of zfile.eachEntry()) {
+                await this.handleZipEntry(zfile, entry, entryContext, entryEvent, token);
+                if (token.isCancelled) {
+                    throw this.canceledError();
                 }
-                if (anyError) {
-                    settle.reject(this.wrapError(anyError, token.isCancelled));
-                } else if (token.isCancelled) {
-                    settle.reject(this.canceledError());
-                } else if (extractedEntriesCount >= total) {
-                    // If the zip content is empty, it will not receive the zfile.on("entry") event.
-                    settle.resolve();
-                }
-            });
-
-            zfile.on("entry", async (entry: yauzl.Entry) => {
-                try {
-                    await this.handleZipEntry(zfile, entry, entryContext, entryEvent, token);
-                    extractedEntriesCount++;
-                    if (extractedEntriesCount >= total) {
-                        settle.resolve();
-                    }
-                } catch (error) {
-                    anyError = this.wrapError(error, token.isCancelled);
-                    this.closeZip(zfile);
-                    settle.reject(anyError);
-                }
-            });
-
-            this.readNextEntry(zfile, token);
-        });
-    }
-
-    private readNextEntry(zfile: yauzl.ZipFile, token: CancellationToken): void {
-        if (token.isCancelled) {
-            this.closeZip(zfile);
-            return;
+            }
+        } catch (error) {
+            throw this.wrapError(error, token.isCancelled);
         }
-        zfile.readEntry();
-    }
-
-    private createPromiseSettler(resolve: () => void, reject: (error: Error) => void) {
-        let settled = false;
-
-        return {
-            resolve: () => {
-                if (settled) {
-                    return;
-                }
-                settled = true;
-                resolve();
-            },
-            reject: (error: Error) => {
-                if (settled) {
-                    return;
-                }
-                settled = true;
-                reject(error);
-            },
-        };
     }
 
     private async handleZipEntry(
@@ -401,7 +344,6 @@ export class Unzip extends Cancelable {
 
         if (entryEvent.isPrevented) {
             entryEvent.reset();
-            this.readNextEntry(zfile, token);
             return;
         }
 
@@ -438,21 +380,11 @@ export class Unzip extends Cancelable {
         } as const;
 
         try {
-            return await new Promise<yauzl.ZipFile>((resolve, reject) => {
-                const callback = (err: Error | null, zfile: yauzl.ZipFile) => {
-                    if (err) {
-                        reject(this.wrapError(err, token.isCancelled));
-                    } else {
-                        resolve(zfile);
-                    }
-                };
-
-                if (typeof zipFileOrBuffer === "string") {
-                    yauzl.open(zipFileOrBuffer, options, callback);
-                } else {
-                    yauzl.fromBuffer(zipFileOrBuffer, options, callback);
-                }
-            });
+            if (typeof zipFileOrBuffer === "string") {
+                return yauzl.openPromise(zipFileOrBuffer, options);
+            } else {
+                return yauzl.fromBufferPromise(zipFileOrBuffer, options);
+            }
         } catch (error) {
             throw this.wrapError(error, token.isCancelled);
         }
@@ -469,23 +401,14 @@ export class Unzip extends Cancelable {
             // Note that entries for directories themselves are optional.
             // An entry's fileName implicitly requires its parent directories to exist.
             await exfs.ensureFolder(entryContext.getFilePath());
-            this.readNextEntry(zfile, token);
         } else {
             // file entry
             await this.extractEntry(zfile, entry, entryContext, token);
         }
     }
 
-    private openZipFileStream(zfile: yauzl.ZipFile, entry: yauzl.Entry, token: CancellationToken): Promise<Readable> {
-        return new Promise<Readable>((resolve, reject) => {
-            zfile.openReadStream(entry, (err, readStream) => {
-                if (err) {
-                    reject(this.wrapError(err, token.isCancelled));
-                } else {
-                    resolve(readStream);
-                }
-            });
-        });
+    private openZipFileStream(zfile: yauzl.ZipFile, entry: yauzl.Entry): Promise<Readable> {
+        return zfile.openReadStreamPromise(entry);
     }
 
     private async extractEntry(
@@ -501,11 +424,10 @@ export class Unzip extends Cancelable {
         if (outside) {
             const error = new Error(`Refuse to write file outside "${entryContext.targetFolder}", file: "${filePath}"`);
             error.name = "AFWRITE";
-            return Promise.reject(error);
+            throw error;
         }
-        const readStream = await this.openZipFileStream(zfile, entry, token);
+        const readStream = await this.openZipFileStream(zfile, entry);
         await this.writeEntryToFile(readStream, entry, entryContext, token);
-        this.readNextEntry(zfile, token);
     }
 
     private async writeEntryToFile(

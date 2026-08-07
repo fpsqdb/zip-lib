@@ -1,7 +1,7 @@
 {
-	"extends": "./tsconfig.base.json",
+	"extends": "../tsconfigs/tsconfig.base.json",
     "compilerOptions": {
-        "target": "es2017",
+        "target": "es2025",
         "outDir": "../dist",
         "sourceMap": true,
     }

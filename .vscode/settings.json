@@ -1,0 +1,15 @@
+{
+    "cSpell.words": [
+        "AFWRITE",
+        "changelogithub",
+        "chara",
+        "charz",
+        "exfs",
+        "readdirp",
+        "tpath",
+        "yazl",
+        "zfile"
+    ],
+    "js/ts.experimental.useTsgo": true,
+    "js/ts.tsdk.path": "node_modules\\typescript"
+}

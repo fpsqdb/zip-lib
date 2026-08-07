@@ -1,8 +1,8 @@
 {
     "compilerOptions": {
-        "module": "nodenext",
-        "moduleResolution": "nodenext",
-        "target": "es2017",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "target": "esnext",
         "sourceMap": true,
         "experimentalDecorators": true,
         "allowSyntheticDefaultImports": true,

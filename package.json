@@ -2,12 +2,14 @@
     "name": "zip-lib",
     "version": "1.4.0",
     "description": "A zip and unzip library for Node.js.",
-    "main": "lib/index.js",
-    "types": "./lib/index.d.ts",
+    "module": "./esm/index.js",
+    "main": "./lib/index.js",
+    "types": "./esm/index.d.ts",
     "scripts": {
         "lint": "biome lint",
-        "tsc-cjs": "tsc -p ./src/tsconfig.production.cjs.json",
-        "release": "rimraf ./pkg && npm run tsc-cjs && node ./build.mjs",
+        "tsc-cjs": "tsc -p ./tsconfigs/tsconfig.production.cjs.json",
+        "tsc-esm": "tsc -p ./tsconfigs/tsconfig.production.esm.json",
+        "release": "rimraf ./pkg && npm run tsc-cjs && npm run tsc-esm && node ./build.mjs",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage"
     },
@@ -34,13 +36,13 @@
         "yazl": "^3.3.1"
     },
     "devDependencies": {
-        "@biomejs/biome": "^2.4.16",
-        "@types/node": "^20.19.42",
-        "@types/yauzl": "^3.3.0",
+        "@biomejs/biome": "^2.5.7",
+        "@types/node": "^20.19.43",
+        "@types/yauzl": "^3.4.0",
         "@types/yazl": "^3.3.1",
         "@vitest/coverage-v8": "^4.1.2",
         "rimraf": "^6.1.3",
-        "typescript": "^6.0.3",
+        "typescript": "^7.0.2",
         "vitest": "^4.0.18"
     }
 }

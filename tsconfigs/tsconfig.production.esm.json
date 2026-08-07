@@ -1,0 +1,8 @@
+{
+	"extends": "./tsconfig.base.json",
+    "compilerOptions": {
+        "target": "es2025",
+        "outDir": "../pkg/esm",
+        "sourceMap": false,
+    }
+}

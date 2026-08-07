@@ -1,7 +1,8 @@
 {
 	"extends": "./tsconfig.base.json",
     "compilerOptions": {
-        "target": "es2017",
+        "module": "commonjs",
+        "target": "es2025",
         "outDir": "../pkg/lib",
         "sourceMap": false,
     }

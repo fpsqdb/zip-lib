@@ -1,7 +1,8 @@
 {
     "compilerOptions": {
-        "module": "nodenext",
-        "moduleResolution": "nodenext",
+        "rootDir": "../src",
+        "module": "esnext",
+        "moduleResolution": "bundler",
         "declaration": true,
         "experimentalDecorators": true,
         "allowSyntheticDefaultImports": true,
@@ -13,5 +14,6 @@
         "alwaysStrict": true,
         "strictBindCallApply": true,
         "strictNullChecks": true
-    }
+    },
+    "include": ["../src"]
 }

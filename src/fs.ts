@@ -130,6 +130,49 @@ export async function ensureFolder(folder: string): Promise<FolderStat> {
     }
 }
 
+/**
+ * Resolves the real path of the longest existing prefix of the target and appends the
+ * remaining (not yet existing) segments to it.
+ *
+ * Unlike `fs.realpath`, the target does not have to exist. Unlike `path.resolve`, ".."
+ * is not collapsed as text, so links are followed before ".." is applied (POSIX).
+ *
+ * @example
+ * // "/srv/app/link" is a symlink to "/srv/real"
+ * await realpathExistingPrefix("/srv/app/link/file.txt");   // "/srv/real/file.txt"
+ * await realpathExistingPrefix("/srv/app/link/new.txt");    // "/srv/real/new.txt", tail does not exist yet
+ * await realpathExistingPrefix("/srv/app/missing/new.txt"); // "/srv/app/missing/new.txt", nothing to resolve
+ * await realpathExistingPrefix("/srv/app/link/..");         // "/srv", the link is followed before ".."
+ *
+ * @param target - The path to resolve.
+ * @returns The real path, or `undefined` when no prefix of the path can be resolved.
+ */
+export async function realpathExistingPrefix(target: string): Promise<string | undefined> {
+    const remainder: string[] = [];
+    let current = target;
+    while (true) {
+        try {
+            const realPath = await fs.realpath(current);
+            return remainder.length === 0 ? realPath : path.join(realPath, ...remainder.reverse());
+        } catch (error) {
+            if (
+                typeof error !== "object" ||
+                error === null ||
+                !("code" in error) ||
+                (error.code !== "ENOENT" && error.code !== "ENOTDIR")
+            ) {
+                throw error;
+            }
+            const parent = path.dirname(current);
+            if (parent === current) {
+                return undefined;
+            }
+            remainder.push(path.basename(current));
+            current = parent;
+        }
+    }
+}
+
 export async function pathExists(target: string): Promise<boolean> {
     try {
         await fs.access(target);

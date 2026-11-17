@@ -105,23 +105,36 @@ interface IEntryContext {
      */
     readonly realTargetFolder: string;
     /**
-     * The names of symlink files that have been processed.
+     * Records a symlink file that has been processed.
+     * @param filePath
      */
-    readonly symlinkFileNames: string[];
+    addSymlinkFileName(filePath: string): void;
     getFilePath(): string;
     /**
-     * Whether the symlink target path is outside the target folder.
+     * Inspects the symlink target path.
      * @param linkTarget
      * @param linkFilePath
      */
-    isSymlinkTargetOutsideTargetFolder(linkTarget: string, linkFilePath: string): boolean;
+    isSymlinkTargetOutsideTargetFolder(linkTarget: string, linkFilePath: string): Promise<IOutsideTargetInfo>;
     /**
      * Whether the specified path is outside the target folder.
      * @param tpath
      */
-    isOutsideTargetFolder(tpath: string): Promise<boolean>;
+    isOutsideTargetFolder(tpath: string): Promise<IOutsideTargetInfo>;
     inspectFolder(folder: string): Promise<void>;
     ensureFolder(folder: string): Promise<void>;
+}
+
+interface IOutsideTargetInfo {
+    /**
+     * Whether the path is outside the target folder.
+     */
+    readonly isOutside: boolean;
+    /**
+     * The path after following the links created by the current extraction.
+     * Only meaningful when `isOutside` is `true`.
+     */
+    readonly resolvedPath: string;
 }
 
 class EntryContext implements IEntryContext {
@@ -130,8 +143,7 @@ class EntryContext implements IEntryContext {
         private _realTargetFolder: string,
         private symlinkAsFileOnWindows: boolean,
     ) {
-        this._symlinkFileNames = [];
-        this._symlinkFolders = [];
+        this._symlinks = new Map<string, string | undefined>();
         this._inspectedFolders = [];
         this._ensuredFolders = [];
     }
@@ -148,18 +160,23 @@ class EntryContext implements IEntryContext {
     public get realTargetFolder(): string {
         return this._realTargetFolder;
     }
-    private _symlinkFileNames: string[];
-    public get symlinkFileNames(): string[] {
-        return this._symlinkFileNames;
-    }
-    private _symlinkFolders: { folder: string; realpath: string }[];
+    /**
+     * Symlinks (files and folders) processed so far. The key is the link path, the value
+     * is its real path when already known (folder links), `undefined` otherwise (file
+     * links). Serves both as a cheap index to decide whether a path can escape through a
+     * link and as a cache to skip `fs.realpath` calls.
+     */
+    private _symlinks: Map<string, string | undefined>;
     private _inspectedFolders: string[];
     private _ensuredFolders: string[];
 
     private addSymlinkFolder(folder: string, realpath: string): void {
-        const find = this._symlinkFolders.find((item) => item.folder === folder);
-        if (!find) {
-            this._symlinkFolders.push({ folder, realpath });
+        this._symlinks.set(folder, realpath);
+    }
+
+    public addSymlinkFileName(filePath: string): void {
+        if (!this._symlinks.has(filePath)) {
+            this._symlinks.set(filePath, undefined);
         }
     }
 
@@ -198,34 +215,77 @@ class EntryContext implements IEntryContext {
         this._ensuredFolders.push(folder);
     }
 
-    public isSymlinkTargetOutsideTargetFolder(linkTarget: string, linkFilePath: string): boolean {
-        const fileDir = path.dirname(linkFilePath);
-        return exfs.isOutside(this.realTargetFolder, path.resolve(fileDir, linkTarget));
-    }
-
-    public async isOutsideTargetFolder(tpath: string): Promise<boolean> {
-        if (this._symlinkFileNames.length === 0 && this._symlinkFolders.length === 0) {
-            return false;
-        }
-        if (process.platform === "win32" && this.symlinkAsFileOnWindows) {
-            return false;
-        }
-        for (const { folder, realpath } of this._symlinkFolders) {
-            if (!exfs.isOutside(folder, tpath)) {
-                if (exfs.isOutside(this.realTargetFolder, realpath)) {
-                    return true;
-                }
+    /**
+     * Cheap check whether the raw (not yet normalized) path goes through one of the
+     * symlinks created by this extraction, without any `fs` call.
+     */
+    private hasSymlinkInPath(rawPath: string): boolean {
+        const root = path.parse(rawPath).root;
+        let current = root;
+        for (const segment of rawPath.slice(root.length).split(/[\\/]+/)) {
+            if (!segment) {
+                continue;
             }
-        }
-        for (const fileName of this._symlinkFileNames) {
-            if (!exfs.isOutside(fileName, tpath)) {
-                const realFilePath = await fs.realpath(tpath);
-                if (exfs.isOutside(this.realTargetFolder, realFilePath)) {
-                    return true;
-                }
+            current = current.endsWith(path.sep) ? current + segment : current + path.sep + segment;
+            if (this._symlinks.has(current)) {
+                return true;
             }
         }
         return false;
+    }
+
+    public async isSymlinkTargetOutsideTargetFolder(
+        linkTarget: string,
+        linkFilePath: string,
+    ): Promise<IOutsideTargetInfo> {
+        const fileDir = path.dirname(linkFilePath);
+        // Keep the target raw here: `path.join` would collapse "l/.." into the link folder
+        // itself (e.g. "extract/l/.." -> "extract"), losing the link the kernel follows
+        // before handling "..". `path.resolve` below is only used for the textual check.
+        const rawTarget = path.isAbsolute(linkTarget) ? linkTarget : `${fileDir}${path.sep}${linkTarget}`;
+        const textualTarget = path.resolve(rawTarget);
+        if (exfs.isOutside(this.realTargetFolder, textualTarget)) {
+            return { isOutside: true, resolvedPath: textualTarget };
+        }
+        // A target like "link/.." is inside the target folder when ".." is collapsed as
+        // text, but the kernel resolves ".." after following the link. Only pay for
+        // `fs.realpath` when the target actually goes through a link of this extraction.
+        if (this._symlinks.size === 0 || !this.hasSymlinkInPath(rawTarget)) {
+            return { isOutside: false, resolvedPath: textualTarget };
+        }
+        const resolvedPath = await exfs.realpathExistingPrefix(rawTarget);
+        if (resolvedPath === undefined) {
+            return { isOutside: false, resolvedPath: textualTarget };
+        }
+        return { isOutside: exfs.isOutside(this.realTargetFolder, resolvedPath), resolvedPath };
+    }
+
+    public async isOutsideTargetFolder(tpath: string): Promise<IOutsideTargetInfo> {
+        if (this._symlinks.size === 0 || (process.platform === "win32" && this.symlinkAsFileOnWindows)) {
+            return { isOutside: false, resolvedPath: tpath };
+        }
+        const textualTarget = path.resolve(tpath);
+        let realpathNeeded = false;
+        for (const [symlinkPath, realpath] of this._symlinks) {
+            if (exfs.isOutside(symlinkPath, tpath)) {
+                continue;
+            }
+            if (realpath === undefined) {
+                realpathNeeded = true;
+                continue;
+            }
+            // The real path of the symlink folder is already known, so the final path
+            // can be derived without an extra `fs.realpath` call.
+            const resolvedPath = path.join(realpath, path.relative(symlinkPath, tpath));
+            if (exfs.isOutside(this.realTargetFolder, resolvedPath)) {
+                return { isOutside: true, resolvedPath };
+            }
+        }
+        if (!realpathNeeded) {
+            return { isOutside: false, resolvedPath: textualTarget };
+        }
+        const resolvedPath = (await exfs.realpathExistingPrefix(tpath)) ?? textualTarget;
+        return { isOutside: exfs.isOutside(this.realTargetFolder, resolvedPath), resolvedPath };
     }
 }
 
@@ -420,9 +480,11 @@ export class Unzip extends Cancelable {
         const filePath = entryContext.getFilePath();
         const fileDir = path.dirname(filePath);
         await entryContext.inspectFolder(fileDir);
-        const outside = await entryContext.isOutsideTargetFolder(filePath);
-        if (outside) {
-            const error = new Error(`Refuse to write file outside "${entryContext.targetFolder}", file: "${filePath}"`);
+        const fileTarget = await entryContext.isOutsideTargetFolder(filePath);
+        if (fileTarget.isOutside) {
+            const error = new Error(
+                `Refuse to write file outside "${entryContext.targetFolder}", file: "${filePath}", resolved path: "${fileTarget.resolvedPath}"`,
+            );
             error.name = "AFWRITE";
             throw error;
         }
@@ -442,19 +504,19 @@ export class Unzip extends Cancelable {
             // see https://unix.stackexchange.com/questions/193465/what-file-mode-is-a-symlink
             const isSymlink = (mode & 0o170000) === 0o120000;
             if (isSymlink) {
-                entryContext.symlinkFileNames.push(
+                entryContext.addSymlinkFileName(
                     path.resolve(path.join(entryContext.targetFolder, entryContext.decodeEntryFileName)),
                 );
             }
             if (isSymlink && !this.symlinkToFile()) {
                 const linkContent = await this.readStreamContent(readStream, token);
 
-                if (
-                    this.options?.safeSymlinksOnly &&
-                    entryContext.isSymlinkTargetOutsideTargetFolder(linkContent, filePath)
-                ) {
+                const linkTarget = this.options?.safeSymlinksOnly
+                    ? await entryContext.isSymlinkTargetOutsideTargetFolder(linkContent, filePath)
+                    : undefined;
+                if (linkTarget?.isOutside) {
                     const error = new Error(
-                        `Dangerous link path was refused : "${entryContext.targetFolder}", file: "${filePath}", target: "${linkContent}". Set safeSymlinksOnly to false to allow writing through this symlink.`,
+                        `Dangerous link path was refused : "${entryContext.targetFolder}", file: "${filePath}", target: "${linkContent}", resolved target: "${linkTarget.resolvedPath}". Set safeSymlinksOnly to false to allow writing through this symlink.`,
                     );
                     error.name = "AF_ILLEGAL_TARGET";
                     throw error;

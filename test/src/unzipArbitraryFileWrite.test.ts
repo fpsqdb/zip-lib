@@ -109,6 +109,49 @@ describe("unzip, safeSymlinksOnly=false", () => {
             "extract a zip file that attempt to write file outside output folder, case 1, safeSymlinksOnly=false",
         );
     });
+
+    if (process.platform !== "win32") {
+        it("rejects writing a regular-file entry through a chain of relative symlink entries", async () => {
+            const SYMLINK_MODE = 0o120000 | 0o0777;
+            const REGULAR_MODE = 0o100644;
+            const sandbox = node_fs.mkdtempSync(path.join(node_fs.realpathSync(os.tmpdir()), "zl-"));
+            const outside = path.join(sandbox, "outside");
+            node_fs.mkdirSync(outside);
+            const relOutside = path.relative("/", outside);
+            const zipPath = path.join(sandbox, "evil.zip");
+            const extract = path.join(sandbox, "extract");
+            // Every link target is inside the extraction folder when ".." is collapsed as text,
+            // but the kernel resolves "l/.." after following the link, so each link goes one level up.
+            // 16 levels are more than the extraction folder is deep, above "/" the kernel stays at "/".
+            const levels = 16;
+            const entries: { name: string; data: string; mode: number }[] = [
+                { name: `${relOutside}/marker.txt`, data: "decoy", mode: REGULAR_MODE },
+                { name: "l", data: ".", mode: SYMLINK_MODE },
+            ];
+            for (let i = 1; i <= levels; i++) {
+                entries.push({ name: `x${i}`, data: i === 1 ? "l/.." : `x${i - 1}/..`, mode: SYMLINK_MODE });
+            }
+            entries.push({ name: `x${levels}/${relOutside}/marker.txt`, data: "PWNED\n", mode: REGULAR_MODE });
+            // ... craft zip with a symlink chain + regular entry written through the last link ...
+            await new Promise<void>((resolve, reject) => {
+                const zf = new yazl.ZipFile();
+                for (const entry of entries) {
+                    zf.addBuffer(Buffer.from(entry.data), entry.name, { mode: entry.mode });
+                }
+                zf.end();
+                zf.outputStream.pipe(node_fs.createWriteStream(zipPath)).on("close", resolve).on("error", reject);
+            });
+            await expectNamedError(
+                () =>
+                    zl.extract(zipPath, extract, {
+                        overwrite: true,
+                        symlinkAsFileOnWindows: false,
+                    }),
+                "AFWRITE",
+                "extract a zip file that attempt to write file outside output folder through a symlink chain, safeSymlinksOnly=false",
+            );
+        });
+    }
 });
 
 describe("unzip, safeSymlinksOnly=true", () => {

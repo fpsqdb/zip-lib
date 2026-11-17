@@ -219,7 +219,7 @@ class EntryContext implements IEntryContext {
         }
         for (const fileName of this._symlinkFileNames) {
             if (!exfs.isOutside(fileName, tpath)) {
-                const realFilePath = await exfs.realpath(tpath);
+                const realFilePath = await fs.realpath(tpath);
                 if (exfs.isOutside(this.realTargetFolder, realFilePath)) {
                     return true;
                 }
@@ -288,7 +288,7 @@ export class Unzip extends Cancelable {
         }
 
         await exfs.ensureFolder(targetFolder);
-        const realTargetFolder = await exfs.realpath(targetFolder);
+        const realTargetFolder = await fs.realpath(targetFolder);
         const zfile = await this.openZip(zipFileOrBuffer, token);
 
         if (token.isCancelled) {

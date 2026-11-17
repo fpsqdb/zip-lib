@@ -291,7 +291,7 @@ export class Zip extends Cancelable {
         if (entry.isSymbolicLink) {
             if (this.followSymlink()) {
                 try {
-                    const realPath = await exfs.realpath(file.path);
+                    const realPath = await fs.realpath(file.path);
                     const actualStat = await fs.stat(realPath);
                     if (actualStat.isDirectory()) {
                         await this.walkDir(zip, [{ path: realPath, metadataPath: file.metadataPath }], token);

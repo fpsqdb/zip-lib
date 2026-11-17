@@ -1,7 +1,5 @@
-import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as util from "node:util";
 
 export interface FileEntry {
     path: string;
@@ -36,12 +34,6 @@ export function isOutside(basePath: string, targetPath: string): boolean {
     const relative = path.relative(absoluteBase, absoluteTarget);
 
     return relative.startsWith("..") || path.isAbsolute(relative);
-}
-
-export async function realpath(target: string): Promise<string> {
-    // fs.promises.realpath has a bug with long path on Windows.
-    // https://github.com/nodejs/node/issues/51031
-    return util.promisify(fsSync.realpath)(target);
 }
 
 export async function readdirp(folder: string): Promise<FileEntry[]> {
@@ -223,7 +215,7 @@ async function statExistingFolder(folder: string): Promise<FolderStat> {
         };
     }
 
-    const realFilePath = await realpath(folder);
+    const realFilePath = await fs.realpath(folder);
     const realFileStat = await fs.lstat(realFilePath);
     if (!realFileStat.isDirectory()) {
         throw new Error(`"${folder}" exists and is not a directory.`);

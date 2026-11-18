@@ -356,7 +356,10 @@ describe("fs helper", () => {
             try {
                 await fs.symlink("../escaped.txt", path.join(sandbox, "pwn.txt"));
                 const resolved = await exfs.realpathExistingPrefix(path.join(sandbox, "pwn.txt"));
-                expect(resolved).toBe(path.join(path.dirname(sandbox), "escaped.txt"));
+                // The existing prefix is returned as a real path, and on macOS `os.tmpdir()`
+                // ("/var/...") is a link to "/private/var/...", so resolve the sandbox first.
+                const realSandbox = await fs.realpath(sandbox);
+                expect(resolved).toBe(path.join(path.dirname(realSandbox), "escaped.txt"));
             } finally {
                 await fs.rm(sandbox, { recursive: true, force: true });
             }

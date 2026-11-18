@@ -139,7 +139,7 @@ export class Zip extends Cancelable {
                 });
                 this.bindArchiveOutput(zip, zipFile, token, settle, activeArchive);
 
-                this.addQueuedEntries(zip, token)
+                this.addQueuedEntries(zip, token, activeArchive)
                     .catch((error) => {
                         settle.reject(this.wrapError(error, token.isCancelled));
                     })
@@ -260,13 +260,17 @@ export class Zip extends Cancelable {
         };
     }
 
-    private async addQueuedEntries(zip: yazl.ZipFile, token: CancellationToken): Promise<void> {
+    private async addQueuedEntries(
+        zip: yazl.ZipFile,
+        token: CancellationToken,
+        activeArchive: ActiveArchive,
+    ): Promise<void> {
         for (const file of this.zipFiles) {
             const entry = await exfs.getFileEntry(file.path);
-            await this.addEntry(zip, entry, file, token);
+            await this.addEntry(zip, entry, file, token, activeArchive);
         }
         if (this.zipFolders.length > 0) {
-            await this.walkDir(zip, this.zipFolders, token);
+            await this.walkDir(zip, this.zipFolders, token, activeArchive);
         }
     }
 
@@ -287,6 +291,7 @@ export class Zip extends Cancelable {
         entry: exfs.FileEntry,
         file: ZipFileEntry,
         token: CancellationToken,
+        activeArchive: ActiveArchive,
     ): Promise<void> {
         if (entry.isSymbolicLink) {
             if (this.followSymlink()) {
@@ -294,7 +299,12 @@ export class Zip extends Cancelable {
                     const realPath = await fs.realpath(file.path);
                     const actualStat = await fs.stat(realPath);
                     if (actualStat.isDirectory()) {
-                        await this.walkDir(zip, [{ path: realPath, metadataPath: file.metadataPath }], token);
+                        await this.walkDir(
+                            zip,
+                            [{ path: realPath, metadataPath: file.metadataPath }],
+                            token,
+                            activeArchive,
+                        );
                     } else {
                         const targetEntry: exfs.FileEntry = {
                             path: realPath,
@@ -303,7 +313,7 @@ export class Zip extends Cancelable {
                             mtime: actualStat.mtime,
                             mode: actualStat.mode,
                         };
-                        await this.addFileStream(zip, targetEntry, file.metadataPath, token);
+                        await this.addFileStream(zip, targetEntry, file.metadataPath, token, activeArchive);
                     }
                 } catch (_error) {
                     // Symlink is broken, ignore it
@@ -318,7 +328,7 @@ export class Zip extends Cancelable {
                     mode: entry.mode,
                 });
             } else {
-                await this.addFileStream(zip, entry, file.metadataPath, token);
+                await this.addFileStream(zip, entry, file.metadataPath, token, activeArchive);
             }
         }
     }
@@ -328,6 +338,7 @@ export class Zip extends Cancelable {
         file: exfs.FileEntry,
         metadataPath: string,
         token: CancellationToken,
+        activeArchive: ActiveArchive,
     ): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             const fileStream = createReadStream(file.path);
@@ -337,7 +348,9 @@ export class Zip extends Cancelable {
             fileStream.once("error", (err) => {
                 disposeCancel();
                 const wrappedError = this.wrapError(err, token.isCancelled);
-                this.stop(wrappedError);
+                // A stream error can arrive after this archive has already settled (for example after cancel).
+                // Stop the archive that owns the stream, not whichever archive is currently active.
+                this.stop(wrappedError, activeArchive);
                 reject(wrappedError);
             });
             fileStream.once("close", () => {
@@ -364,7 +377,12 @@ export class Zip extends Cancelable {
         });
     }
 
-    private async walkDir(zip: yazl.ZipFile, folders: ZipFolderEntry[], token: CancellationToken): Promise<void> {
+    private async walkDir(
+        zip: yazl.ZipFile,
+        folders: ZipFolderEntry[],
+        token: CancellationToken,
+        activeArchive: ActiveArchive,
+    ): Promise<void> {
         for (const folder of folders) {
             if (token.isCancelled) {
                 return;
@@ -379,7 +397,7 @@ export class Zip extends Cancelable {
                     const metadataPath = folder.metadataPath
                         ? path.join(folder.metadataPath, relativePath)
                         : relativePath;
-                    await this.addEntry(zip, entry, { path: entry.path, metadataPath }, token);
+                    await this.addEntry(zip, entry, { path: entry.path, metadataPath }, token, activeArchive);
                 }
             } else {
                 // If the folder is empty and the metadataPath has a value,

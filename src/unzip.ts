@@ -1,4 +1,4 @@
-import { createWriteStream } from "node:fs";
+import { constants } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Readable } from "node:stream";
@@ -6,6 +6,13 @@ import { pipeline } from "node:stream/promises";
 import * as yauzl from "yauzl";
 import { Cancelable, CancellationToken } from "./cancelable";
 import * as exfs from "./fs";
+
+// `O_NOFOLLOW` is not available on Windows: it is `undefined` there and the flag is ignored.
+// Where it is available, the kernel refuses to open a link at the target path, so writing a
+// file needs no `fs.lstat` before it is opened.
+const canRefuseLinkAtOpen: boolean = typeof constants.O_NOFOLLOW === "number";
+const writeOpenFlags: number =
+    constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | (canRefuseLinkAtOpen ? constants.O_NOFOLLOW : 0);
 
 export interface IExtractOptions {
     /**
@@ -104,11 +111,6 @@ interface IEntryContext {
      * The real path obtained by fs.realpath.
      */
     readonly realTargetFolder: string;
-    /**
-     * Records a symlink file that has been processed.
-     * @param filePath
-     */
-    addSymlinkFileName(filePath: string): void;
     getFilePath(): string;
     /**
      * Inspects the symlink target path.
@@ -121,7 +123,11 @@ interface IEntryContext {
      * @param tpath
      */
     isOutsideTargetFolder(tpath: string): Promise<IOutsideTargetInfo>;
-    inspectFolder(folder: string): Promise<void>;
+    /**
+     * Inspects the target path and its parents on disk and records the links found.
+     * @param target
+     */
+    inspectPath(target: string): Promise<void>;
     ensureFolder(folder: string): Promise<void>;
 }
 
@@ -141,10 +147,9 @@ class EntryContext implements IEntryContext {
     constructor(
         private _targetFolder: string,
         private _realTargetFolder: string,
-        private symlinkAsFileOnWindows: boolean,
     ) {
-        this._symlinks = new Map<string, string | undefined>();
-        this._inspectedFolders = [];
+        this._links = new Set<string>();
+        this._inspectedPaths = [];
         this._ensuredFolders = [];
     }
     private _decodeEntryFileName: string = "";
@@ -161,44 +166,48 @@ class EntryContext implements IEntryContext {
         return this._realTargetFolder;
     }
     /**
-     * Symlinks (files and folders) processed so far. The key is the link path, the value
-     * is its real path when already known (folder links), `undefined` otherwise (file
-     * links). Serves both as a cheap index to decide whether a path can escape through a
-     * link and as a cache to skip `fs.realpath` calls.
+     * Links found on disk so far, including dangling ones and links left by a previous
+     * extraction. Serves as a cheap index to decide whether a path can escape through a
+     * link, the link itself is always resolved from disk when needed.
      */
-    private _symlinks: Map<string, string | undefined>;
-    private _inspectedFolders: string[];
+    private _links: Set<string>;
+    /**
+     * Paths already inspected on disk. Only paths that exist are recorded: a path that
+     * does not exist yet can still become a link later on.
+     */
+    private _inspectedPaths: string[];
     private _ensuredFolders: string[];
-
-    private addSymlinkFolder(folder: string, realpath: string): void {
-        this._symlinks.set(folder, realpath);
-    }
-
-    public addSymlinkFileName(filePath: string): void {
-        if (!this._symlinks.has(filePath)) {
-            this._symlinks.set(filePath, undefined);
-        }
-    }
 
     public getFilePath(): string {
         return path.resolve(path.join(this.targetFolder, this.decodeEntryFileName));
     }
 
-    public async inspectFolder(folder: string): Promise<void> {
-        if (this._inspectedFolders.includes(folder) || folder === path.dirname(folder)) {
+    public async inspectPath(target: string): Promise<void> {
+        if (this._inspectedPaths.includes(target) || target === path.dirname(target)) {
             return;
         }
 
-        await this.inspectFolder(path.dirname(folder));
+        await this.inspectPath(path.dirname(target));
 
-        const folderStat = await exfs.statFolder(folder);
-        if (!folderStat) {
-            return;
+        let targetStat: Awaited<ReturnType<typeof fs.lstat>>;
+        try {
+            // `fs.lstat` does not follow the link, so a dangling link is still reported as a link.
+            targetStat = await fs.lstat(target);
+        } catch (error) {
+            if (
+                typeof error === "object" &&
+                error !== null &&
+                "code" in error &&
+                (error.code === "ENOENT" || error.code === "ENOTDIR")
+            ) {
+                return;
+            }
+            throw error;
         }
-        if (folderStat.isSymbolicLink) {
-            this.addSymlinkFolder(folder, folderStat.realpath);
+        if (targetStat.isSymbolicLink()) {
+            this._links.add(target);
         }
-        this._inspectedFolders.push(folder);
+        this._inspectedPaths.push(target);
     }
 
     public async ensureFolder(folder: string): Promise<void> {
@@ -206,32 +215,14 @@ class EntryContext implements IEntryContext {
             return;
         }
 
-        await this.inspectFolder(path.dirname(folder));
+        await this.inspectPath(path.dirname(folder));
 
         const folderStat = await exfs.ensureFolder(folder);
         if (folderStat.isSymbolicLink) {
-            this.addSymlinkFolder(folder, folderStat.realpath);
+            this._links.add(folder);
         }
+        this._inspectedPaths.push(folder);
         this._ensuredFolders.push(folder);
-    }
-
-    /**
-     * Cheap check whether the raw (not yet normalized) path goes through one of the
-     * symlinks created by this extraction, without any `fs` call.
-     */
-    private hasSymlinkInPath(rawPath: string): boolean {
-        const root = path.parse(rawPath).root;
-        let current = root;
-        for (const segment of rawPath.slice(root.length).split(/[\\/]+/)) {
-            if (!segment) {
-                continue;
-            }
-            current = current.endsWith(path.sep) ? current + segment : current + path.sep + segment;
-            if (this._symlinks.has(current)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public async isSymlinkTargetOutsideTargetFolder(
@@ -247,12 +238,10 @@ class EntryContext implements IEntryContext {
         if (exfs.isOutside(this.realTargetFolder, textualTarget)) {
             return { isOutside: true, resolvedPath: textualTarget };
         }
-        // A target like "link/.." is inside the target folder when ".." is collapsed as
-        // text, but the kernel resolves ".." after following the link. Only pay for
-        // `fs.realpath` when the target actually goes through a link of this extraction.
-        if (this._symlinks.size === 0 || !this.hasSymlinkInPath(rawTarget)) {
-            return { isOutside: false, resolvedPath: textualTarget };
-        }
+        // A target like "link/.." is inside the target folder when ".." is collapsed as text,
+        // but the kernel resolves ".." after following the links in front of it, which may even
+        // be links that this extraction did not create. This is only reached for symlink entries
+        // with `safeSymlinksOnly`, so the resolution is not on the hot path.
         const resolvedPath = await exfs.realpathExistingPrefix(rawTarget);
         if (resolvedPath === undefined) {
             return { isOutside: false, resolvedPath: textualTarget };
@@ -261,27 +250,21 @@ class EntryContext implements IEntryContext {
     }
 
     public async isOutsideTargetFolder(tpath: string): Promise<IOutsideTargetInfo> {
-        if (this._symlinks.size === 0 || (process.platform === "win32" && this.symlinkAsFileOnWindows)) {
+        // Applies on every platform: the links are read from disk, so a link that a previous
+        // extraction left on Windows is seen as well. `symlinkAsFileOnWindows` only decides how
+        // the links of this archive are created, not whether the ones on disk are followed.
+        if (this._links.size === 0) {
             return { isOutside: false, resolvedPath: tpath };
         }
         const textualTarget = path.resolve(tpath);
-        let realpathNeeded = false;
-        for (const [symlinkPath, realpath] of this._symlinks) {
-            if (exfs.isOutside(symlinkPath, tpath)) {
-                continue;
-            }
-            if (realpath === undefined) {
-                realpathNeeded = true;
-                continue;
-            }
-            // The real path of the symlink folder is already known, so the final path
-            // can be derived without an extra `fs.realpath` call.
-            const resolvedPath = path.join(realpath, path.relative(symlinkPath, tpath));
-            if (exfs.isOutside(this.realTargetFolder, resolvedPath)) {
-                return { isOutside: true, resolvedPath };
+        let linkOnPath: boolean = false;
+        for (const linkPath of this._links) {
+            if (!exfs.isOutside(linkPath, tpath)) {
+                linkOnPath = true;
+                break;
             }
         }
-        if (!realpathNeeded) {
+        if (!linkOnPath) {
             return { isOutside: false, resolvedPath: textualTarget };
         }
         const resolvedPath = (await exfs.realpathExistingPrefix(tpath)) ?? textualTarget;
@@ -366,7 +349,7 @@ export class Unzip extends Cancelable {
     ): Promise<void> {
         try {
             const total = zfile.entryCount;
-            const entryContext: IEntryContext = new EntryContext(targetFolder, realTargetFolder, this.symlinkToFile());
+            const entryContext: IEntryContext = new EntryContext(targetFolder, realTargetFolder);
             const entryEvent = new EntryEvent(total);
             for await (const entry of zfile.eachEntry()) {
                 await this.handleZipEntry(zfile, entry, entryContext, entryEvent, token);
@@ -460,7 +443,22 @@ export class Unzip extends Cancelable {
             // Directory file names end with '/'.
             // Note that entries for directories themselves are optional.
             // An entry's fileName implicitly requires its parent directories to exist.
-            await exfs.ensureFolder(entryContext.getFilePath());
+            const folderPath = entryContext.getFilePath();
+            await entryContext.inspectPath(folderPath);
+            const folderTarget = await entryContext.isOutsideTargetFolder(folderPath);
+            // `ensureFolder` follows the links in the path, so it can create the folder outside
+            // the target folder. A folder that already exists is only re-used, nothing is created,
+            // so only a folder that would actually be created is refused.
+            if (folderTarget.isOutside && !(await exfs.statFolder(folderPath))) {
+                const error = new Error(
+                    `Refuse to create folder outside "${entryContext.targetFolder}", folder: "${folderPath}", resolved path: "${folderTarget.resolvedPath}"`,
+                );
+                error.name = "AFWRITE";
+                throw error;
+            }
+            // Creates the folder by following the links in the path, which is why a folder that
+            // would be created outside the target folder is rejected above.
+            await entryContext.ensureFolder(folderPath);
         } else {
             // file entry
             await this.extractEntry(zfile, entry, entryContext, token);
@@ -479,7 +477,7 @@ export class Unzip extends Cancelable {
     ): Promise<void> {
         const filePath = entryContext.getFilePath();
         const fileDir = path.dirname(filePath);
-        await entryContext.inspectFolder(fileDir);
+        await entryContext.inspectPath(fileDir);
         const fileTarget = await entryContext.isOutsideTargetFolder(filePath);
         if (fileTarget.isOutside) {
             const error = new Error(
@@ -503,11 +501,6 @@ export class Unzip extends Cancelable {
             const mode = this.modeFromEntry(entry);
             // see https://unix.stackexchange.com/questions/193465/what-file-mode-is-a-symlink
             const isSymlink = (mode & 0o170000) === 0o120000;
-            if (isSymlink) {
-                entryContext.addSymlinkFileName(
-                    path.resolve(path.join(entryContext.targetFolder, entryContext.decodeEntryFileName)),
-                );
-            }
             if (isSymlink && !this.symlinkToFile()) {
                 const linkContent = await this.readStreamContent(readStream, token);
 
@@ -524,9 +517,11 @@ export class Unzip extends Cancelable {
 
                 await entryContext.ensureFolder(path.dirname(filePath));
                 await this.createSymlink(linkContent, filePath);
+                // Record the link from disk so that later entries see it.
+                await entryContext.inspectPath(filePath);
             } else {
                 await entryContext.ensureFolder(path.dirname(filePath));
-                const fileStream = createWriteStream(filePath, { mode });
+                const fileStream = (await this.openWriteStream(filePath, mode, entryContext)).createWriteStream();
                 const pipelinePromise = pipeline(readStream, fileStream);
 
                 const disposeCancel = token.onCancelled(() => {
@@ -542,6 +537,63 @@ export class Unzip extends Cancelable {
         } catch (error) {
             throw this.wrapError(error, token.isCancelled);
         }
+    }
+
+    /**
+     * Opens the target file without following a link, so that a link at the target path is never
+     * written through, even when it points outside the target folder or was left there by a
+     * previous extraction.
+     */
+    private async openWriteStream(
+        filePath: string,
+        mode: number,
+        entryContext: IEntryContext,
+    ): Promise<fs.FileHandle> {
+        if (!canRefuseLinkAtOpen) {
+            await this.removeLinkAtTarget(filePath, entryContext);
+        }
+        try {
+            return await fs.open(filePath, writeOpenFlags, mode);
+        } catch (error) {
+            // ELOOP on POSIX, EMLINK on some of the BSDs: the kernel refused to follow a link.
+            const code = (error as NodeJS.ErrnoException).code;
+            if (!canRefuseLinkAtOpen || (code !== "ELOOP" && code !== "EMLINK")) {
+                throw error;
+            }
+            await this.removeLinkAtTarget(filePath, entryContext);
+            return await fs.open(filePath, writeOpenFlags, mode);
+        }
+    }
+
+    /**
+     * Replaces a link at the target path with the regular file that is about to be written, like
+     * `unzip`/7-Zip do: only the link is removed, the path it points to is left untouched. A link
+     * that resolves outside the target folder is refused instead.
+     */
+    private async removeLinkAtTarget(filePath: string, entryContext: IEntryContext): Promise<void> {
+        let isSymlink: boolean = false;
+        try {
+            isSymlink = (await fs.lstat(filePath)).isSymbolicLink();
+        } catch (error) {
+            if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
+                return;
+            }
+            throw error;
+        }
+        if (!isSymlink) {
+            return;
+        }
+
+        const resolvedPath = (await exfs.realpathExistingPrefix(filePath)) ?? filePath;
+        if (exfs.isOutside(entryContext.realTargetFolder, resolvedPath)) {
+            const error = new Error(
+                `Refuse to write file outside "${entryContext.targetFolder}", file: "${filePath}", resolved path: "${resolvedPath}"`,
+            );
+            error.name = "AFWRITE";
+            throw error;
+        }
+        // Removing the link is safe: `fs.unlink` drops the link itself, not its target.
+        await fs.unlink(filePath);
     }
 
     private async readStreamContent(readStream: Readable, token: CancellationToken): Promise<string> {

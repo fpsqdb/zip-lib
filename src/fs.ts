@@ -130,12 +130,17 @@ export async function ensureFolder(folder: string): Promise<FolderStat> {
     }
 }
 
+// Same limit as the one `fs.realpath` uses for links it follows.
+const maxSymlinkFollows: number = 40;
+
 /**
  * Resolves the real path of the longest existing prefix of the target and appends the
  * remaining (not yet existing) segments to it.
  *
  * Unlike `fs.realpath`, the target does not have to exist. Unlike `path.resolve`, ".."
  * is not collapsed as text, so links are followed before ".." is applied (POSIX).
+ * Links pointing to a path that does not exist yet are followed as well, because the
+ * kernel follows them when the path is later opened for writing.
  *
  * @example
  * // "/srv/app/link" is a symlink to "/srv/real"
@@ -143,25 +148,48 @@ export async function ensureFolder(folder: string): Promise<FolderStat> {
  * await realpathExistingPrefix("/srv/app/link/new.txt");    // "/srv/real/new.txt", tail does not exist yet
  * await realpathExistingPrefix("/srv/app/missing/new.txt"); // "/srv/app/missing/new.txt", nothing to resolve
  * await realpathExistingPrefix("/srv/app/link/..");         // "/srv", the link is followed before ".."
+ * // "/srv/app/dangling" is a symlink to "/srv/not_created_yet"
+ * await realpathExistingPrefix("/srv/app/dangling/file.txt"); // "/srv/not_created_yet/file.txt"
  *
  * @param target - The path to resolve.
  * @returns The real path, or `undefined` when no prefix of the path can be resolved.
+ * @throws An error with code `ELOOP` when the path needs more links to be followed than
+ * `fs.realpath` allows. The path is then unresolvable, so this fails closed instead of
+ * returning a path that looks safe.
  */
 export async function realpathExistingPrefix(target: string): Promise<string | undefined> {
     const remainder: string[] = [];
     let current = target;
+    let symlinkFollows = 0;
     while (true) {
         try {
             const realPath = await fs.realpath(current);
             return remainder.length === 0 ? realPath : path.join(realPath, ...remainder.reverse());
         } catch (error) {
-            if (
-                typeof error !== "object" ||
-                error === null ||
-                !("code" in error) ||
-                (error.code !== "ENOENT" && error.code !== "ENOTDIR")
-            ) {
+            if (!isMissingPathError(error)) {
                 throw error;
+            }
+            // `fs.realpath` fails with ENOENT when a link points to a path that does not exist,
+            // while `fs.lstat` still reports the link itself. Follow such a link manually instead
+            // of treating it as a path that does not exist.
+            const linkTarget = await readLinkTarget(current);
+            if (linkTarget !== undefined) {
+                if (++symlinkFollows > maxSymlinkFollows) {
+                    // Fail closed: `fs.realpath` refuses such a path too, and the caller must not
+                    // treat an unresolvable path as a safe one.
+                    const error = new Error(`Too many symbolic links encountered, path: "${target}"`);
+                    (error as NodeJS.ErrnoException).code = "ELOOP";
+                    throw error;
+                }
+                // Keep the concatenation raw: `path.join` would collapse ".." as text, but the
+                // kernel resolves the links in front of ".." first.
+                const linkFolder = path.dirname(current);
+                current = path.isAbsolute(linkTarget)
+                    ? linkTarget
+                    : linkFolder.endsWith(path.sep)
+                      ? `${linkFolder}${linkTarget}`
+                      : `${linkFolder}${path.sep}${linkTarget}`;
+                continue;
             }
             const parent = path.dirname(current);
             if (parent === current) {
@@ -170,6 +198,27 @@ export async function realpathExistingPrefix(target: string): Promise<string | u
             remainder.push(path.basename(current));
             current = parent;
         }
+    }
+}
+
+function isMissingPathError(error: unknown): boolean {
+    return (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error.code === "ENOENT" || error.code === "ENOTDIR")
+    );
+}
+
+async function readLinkTarget(target: string): Promise<string | undefined> {
+    try {
+        const stat = await fs.lstat(target);
+        return stat.isSymbolicLink() ? await fs.readlink(target) : undefined;
+    } catch (error) {
+        if (isMissingPathError(error)) {
+            return undefined;
+        }
+        throw error;
     }
 }
 

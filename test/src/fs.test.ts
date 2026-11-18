@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import * as exfs from "../../src/fs";
@@ -346,6 +347,35 @@ describe("fs helper", () => {
         it("should handle path traversal and redundant slashes", () => {
             expect(exfs.isOutside("/var/www", "/var/www/uploads/../../etc")).toBe(true);
             expect(exfs.isOutside("/var//www", "/var/www/..//")).toBe(true);
+        });
+    });
+
+    describe("realpathExistingPrefix", () => {
+        it("resolves a link whose target does not exist", async () => {
+            const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), "zl-fs-"));
+            try {
+                await fs.symlink("../escaped.txt", path.join(sandbox, "pwn.txt"));
+                const resolved = await exfs.realpathExistingPrefix(path.join(sandbox, "pwn.txt"));
+                expect(resolved).toBe(path.join(path.dirname(sandbox), "escaped.txt"));
+            } finally {
+                await fs.rm(sandbox, { recursive: true, force: true });
+            }
+        });
+
+        it("throws ELOOP instead of resolving a chain that is too long", async () => {
+            const sandbox = await fs.mkdtemp(path.join(os.tmpdir(), "zl-fs-"));
+            try {
+                // Every link points at the next one, the last one points at a missing path, so
+                // resolving needs more follows than `fs.realpath` allows.
+                for (let i = 0; i < 50; i++) {
+                    await fs.symlink(i === 49 ? "missing" : `l${i + 1}`, path.join(sandbox, `l${i}`));
+                }
+                await expect(exfs.realpathExistingPrefix(path.join(sandbox, "l0"))).rejects.toMatchObject({
+                    code: "ELOOP",
+                });
+            } finally {
+                await fs.rm(sandbox, { recursive: true, force: true });
+            }
         });
     });
 });
